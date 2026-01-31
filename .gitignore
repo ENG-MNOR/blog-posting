@@ -1,0 +1,33 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Dependencies
+client/node_modules
+server/node_modules
+node_modules
+
+# Builds
+client/dist
+server/dist
+dist
+build
+
+# Environment files
+.env
+client/.env
+server/.env
+
+# Editor
+.vscode
+.idea
+*.swp
+
+# Uploads
+server/uploads
+
+
+
+
+
