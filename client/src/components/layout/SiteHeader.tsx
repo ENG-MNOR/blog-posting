@@ -17,7 +17,7 @@ const SiteHeader = () => {
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-slate-100">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Dr. Nour Haji Osman</p>
+          <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Nour Haji Osman</p>
           <p className="font-display text-lg text-primary">Public Health Leader</p>
         </div>
 
