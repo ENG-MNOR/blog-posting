@@ -31,7 +31,7 @@ const HomePage = () => {
   return (
     <>
       <Helmet>
-        <title>Dr. Nour Haji Osman | Public Health Expert</title>
+        <title>Mr. Nour Haji Osman | Public Health Expert</title>
         <meta
           name="description"
           content="Building resilient health information systems across the Horn of Africa."

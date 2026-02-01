@@ -5,7 +5,7 @@ const SiteFooter = () => {
   return (
     <footer className="border-t border-slate-200 bg-white">
       <div className="mx-auto flex max-w-6xl flex-col gap-2 px-6 py-6 text-sm text-slate-700 md:flex-row md:items-center md:justify-between">
-        <p>© {new Date().getFullYear()} Dr. Nour Haji Osman. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} Nour Haji Osman. All rights reserved.</p>
 
         <div className="flex items-center gap-3 text-xs">
           <p>Follow Us:</p>

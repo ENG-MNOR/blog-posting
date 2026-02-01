@@ -7,7 +7,7 @@ const AboutPage = () => {
   return (
     <>
       <Helmet>
-        <title>About Dr. Nour Haji Osman</title>
+        <title>About  Nour Haji Osman</title>
       </Helmet>
       <div className="space-y-6">
         <div>
