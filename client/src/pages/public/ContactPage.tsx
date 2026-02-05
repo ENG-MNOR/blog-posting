@@ -52,7 +52,7 @@ const ContactPage = () => {
   return (
     <>
       <Helmet>
-        <title>Contact | Dr. Nour Haji</title>
+        <title>Contact | Nour Haji</title>
       </Helmet>
 
       <div className="grid gap-10 md:grid-cols-2">
@@ -60,10 +60,10 @@ const ContactPage = () => {
           <p className="text-sm uppercase tracking-[0.4em] text-primary/80">
             Contact
           </p>
-          <h1 className="font-display text-4xl text-dark">Invite Dr. Nour</h1>
+          <h1 className="font-display text-4xl text-dark">Invite Nour Haji</h1>
 
           <p className="mt-4 text-lg text-slate-600">
-            Share details about your seminar, training, or advisory need. Dr.
+            Share details about your seminar, training, or advisory need.
             Nour responds within 2–3 business days.
           </p>
 

@@ -33,3 +33,28 @@ export const sendContactEmail = async ({ name, email, requestType = 'general', m
   });
 };
 
+export const sendReplyEmail = async ({ name, email, originalMessage, replyMessage }) => {
+  if (!env.smtp.user) {
+    console.warn('SMTP not fully configured; skipping outbound reply email.');
+    return;
+  }
+
+  await transporter.sendMail({
+    from: `"Nor Website" <${env.smtp.user}>`,
+    to: email,
+    subject: `Re: Your message to Nor Website`,
+    html: `
+      <p>Dear ${name},</p>
+      <p>Thank you for contacting us. Here is our response to your message:</p>
+      <hr />
+      <p>${replyMessage}</p>
+      <hr />
+      <p style="color: #666; font-size: 0.9em;">
+        <strong>Original Message:</strong><br/>
+        ${originalMessage}
+      </p>
+      <p>Best regards,<br/>Nor Website Team<br/>norhaji@just.edu.so</p>
+    `
+  });
+};
+

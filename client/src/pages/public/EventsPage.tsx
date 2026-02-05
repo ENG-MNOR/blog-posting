@@ -146,14 +146,14 @@ const EventsPage = () => {
   return (
     <>
       <Helmet>
-        <title>Events & Engagements | Dr. Nour Haji</title>
+        <title>Events & Engagements | Nour Haji</title>
       </Helmet>
       <div className="space-y-8">
         <div>
           <p className="text-sm uppercase tracking-[0.4em] text-primary/80">Events</p>
           <h1 className="font-display text-4xl text-dark">Speaking, Trainings & Missions</h1>
           <p className="mt-3 text-lg text-slate-600">
-            Follow the seminars, donor briefings, and training missions Dr. Nour is leading across
+            Follow the seminars, donor briefings, and training missions Nour is leading across
             the region.
           </p>
         </div>

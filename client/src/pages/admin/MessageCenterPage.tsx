@@ -2,7 +2,7 @@ import { useMutateMessages, useMessages } from '@/hooks/useApi';
 
 const MessageCenterPage = () => {
   const { data } = useMessages();
-  const mutation = useMutateMessages();
+  const mutations = useMutateMessages();
 
   return (
     <section className="space-y-4">
@@ -27,7 +27,7 @@ const MessageCenterPage = () => {
               </div>
               {message.status === 'unread' && (
                 <button
-                  onClick={() => mutation.mutate(message._id)}
+                  onClick={() => mutations.markRead.mutate(message._id)}
                   className="rounded-full border border-primary px-4 py-1 text-sm font-semibold text-primary hover:bg-primary hover:text-white"
                 >
                   Mark as read

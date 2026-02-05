@@ -53,7 +53,7 @@ const HomePage = () => {
 
           <p className="text-lg text-slate-600">
             {homeContent?.heroSubtext ||
-              'Dr. Nour Haji Osman partners with ministries, donors, and global agencies to advance HMIS, IDSR, immunization, and data use initiatives.'}
+              'Nour Haji Osman partners with ministries, donors, and global agencies to advance HMIS, IDSR, immunization, and data use initiatives.'}
           </p>
 
           <div className="flex flex-wrap gap-3">
@@ -86,7 +86,7 @@ const HomePage = () => {
           {getImageSrc(homeContent?.profilePhoto) ? (
             <img
               src={getImageSrc(homeContent?.profilePhoto)}
-              alt="Dr. Nour Haji Osman"
+              alt="Nour Haji Osman"
               className="w-full max-w-md rounded-3xl shadow-lg object-cover"
             />
           ) : (

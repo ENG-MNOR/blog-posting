@@ -7,7 +7,7 @@ const AboutPage = () => {
   return (
     <>
       <Helmet>
-        <title>About  Nour Haji Osman</title>
+        <title>About Nour Haji Osman</title>
       </Helmet>
       <div className="space-y-6">
         <div>
@@ -15,7 +15,7 @@ const AboutPage = () => {
           <h1 className="font-display text-4xl text-dark">Driving data-driven health systems</h1>
           <p className="mt-4 text-lg text-slate-600">
             {data?.intro ||
-              'Dr. Nour is a seasoned public health leader helping governments translate data into decisive action across HMIS, IDSR, and immunization programs.'}
+              'Nour is a seasoned public health leader helping governments translate data into decisive action across HMIS, IDSR, and immunization programs.'}
           </p>
         </div>
 
@@ -56,7 +56,7 @@ const AboutPage = () => {
           <h2 className="text-2xl font-semibold text-dark">Full Bio</h2>
           <p className="mt-4 leading-7 text-slate-700 whitespace-pre-line">
             {data?.bio ||
-              'Dr. Nour has led national health information system transformations, deployed IDSR platforms, and mentored emerging data leaders across East Africa. He specializes in aligning donors, ministries, and frontline teams around a common data vision.'}
+              'Nour has led national health information system transformations, deployed IDSR platforms, and mentored emerging data leaders across East Africa. He specializes in aligning donors, ministries, and frontline teams around a common data vision.'}
           </p>
         </section>
       </div>

@@ -10,6 +10,7 @@ export default {
         dark: '#0B1B2B'
       },
       fontFamily: {
+        sans: ['"Inter"', 'sans-serif'],
         display: ['"Playfair Display"', 'serif'],
         body: ['"Inter"', 'sans-serif']
       }
