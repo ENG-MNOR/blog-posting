@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import {
   listResearch,
-  listDashboardResearch,
   getResearch,
   createResearch,
   updateResearch,
@@ -12,11 +11,11 @@ import { authenticate, requireAdmin } from '../middleware/auth.js';
 const router = Router();
 
 router.get('/', listResearch);
-router.get('/dashboard', authenticate, listDashboardResearch);
+router.get('/dashboard', authenticate, requireAdmin, listResearch);
 router.get('/:id', getResearch);
-router.post('/', authenticate, createResearch);
-router.put('/:id', authenticate, updateResearch);
-router.delete('/:id', authenticate, deleteResearch);
+router.post('/', authenticate, requireAdmin, createResearch);
+router.put('/:id', authenticate, requireAdmin, updateResearch);
+router.delete('/:id', authenticate, requireAdmin, deleteResearch);
 
 export default router;
 

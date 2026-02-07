@@ -29,15 +29,15 @@ const StatCard = ({
   icon: any;
   colorClass?: string;
 }) => (
-  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm flex items-center gap-4 transition-transform hover:scale-[1.02]">
+  <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:scale-[1.02] dark:border-slate-800 dark:bg-slate-900">
     <div className={`rounded-xl p-3 ${colorClass}`}>
       <Icon size={26} />
     </div>
     <div>
-      <p className="text-xs uppercase tracking-wide text-slate-500 font-medium">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
         {label}
       </p>
-      <p className="mt-1 text-3xl font-bold text-slate-800">{value}</p>
+      <p className="mt-1 text-3xl font-bold text-slate-800 dark:text-white">{value}</p>
     </div>
   </div>
 );
@@ -76,21 +76,21 @@ const DashboardPage = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'published':
-        return <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-800"><CheckCircle size={10} /> Published</span>;
+        return <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300"><CheckCircle size={10} /> Published</span>;
       case 'pending_review':
-        return <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-[10px] font-medium text-yellow-800"><Clock size={10} /> Pending</span>;
+        return <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-[10px] font-medium text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"><Clock size={10} /> Pending</span>;
       default:
-        return <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-800"><File size={10} /> Draft</span>;
+        return <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-800 dark:bg-slate-800 dark:text-slate-300"><File size={10} /> Draft</span>;
     }
   };
 
   return (
     <div className="space-y-8">
       <div>
-        <p className="text-sm uppercase tracking-[0.4em] text-primary/70 font-semibold">
+        <p className="text-sm font-semibold uppercase tracking-[0.4em] text-primary/70 dark:text-sky-400/70">
           Overview
         </p>
-        <h1 className="text-3xl font-bold text-slate-800 mt-1">Welcome back, {user?.name}</h1>
+        <h1 className="mt-1 text-3xl font-bold text-slate-800 dark:text-white">Welcome back, {user?.name}</h1>
       </div>
 
       {/* Stat Cards */}
@@ -99,28 +99,31 @@ const DashboardPage = () => {
           label="Research Entries"
           value={research?.length ?? 0}
           icon={FileSearch}
-          colorClass="bg-blue-50 text-blue-600"
+          colorClass="bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
         />
         <StatCard
           label="Unread Messages"
           value={unreadMessages.length}
           icon={MessageCircleMore}
-          colorClass="bg-purple-50 text-purple-600"
+          colorClass="bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400"
         />
      <StatCard
           label="Total Upcoming Events"
           value={upcoming?.length ?? 0}
           icon={CalendarDays}
+          colorClass="bg-primary/10 text-primary dark:bg-sky-900/20 dark:text-sky-400"
         />
         <StatCard
           label="Total Recent Events"
           value={past?.length ?? 0}
           icon={History}
+          colorClass="bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
         />
         <StatCard
           label="Total Unread Messages"
           value={messages?.filter((m) => m.status === 'unread').length ?? 0}
           icon={MessageCircleMore}
+          colorClass="bg-pink-50 text-pink-600 dark:bg-pink-900/20 dark:text-pink-400"
         />
 
         {user?.role === 'admin' ? (
@@ -128,67 +131,67 @@ const DashboardPage = () => {
             label="Total Users"
             value={users?.length ?? 0}
             icon={Users}
-            colorClass="bg-emerald-50 text-emerald-600"
+            colorClass="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400"
           />
         ) : (
           <StatCard
             label="Past Events"
             value={past?.length ?? 0}
             icon={History}
-            colorClass="bg-slate-100 text-slate-600"
+            colorClass="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
           />
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* Left Column (Main Content) */}
-        <div className="lg:col-span-2 space-y-8">
+        <div className="space-y-8 lg:col-span-2">
             
             {/* Recent Messages */}
-            <section className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-                    <h2 className="text-lg font-bold text-slate-800">Recent Unread Messages</h2>
-                    <Link to="/admin/messages" className="text-xs font-medium text-primary hover:underline flex items-center gap-1">
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+                <div className="flex items-center justify-between border-b border-slate-100 p-6 dark:border-slate-800">
+                    <h2 className="text-lg font-bold text-slate-800 dark:text-white">Recent Unread Messages</h2>
+                    <Link to="/admin/messages" className="flex items-center gap-1 text-xs font-medium text-primary hover:underline dark:text-sky-400">
                         View All <ArrowRight size={12} />
                     </Link>
                 </div>
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
                 {unreadMessages.slice(0, 3).map((msg) => (
-                    <article key={msg._id} className="p-6 hover:bg-slate-50 transition-colors">
-                    <div className="flex items-start justify-between mb-2">
+                    <article key={msg._id} className="p-6 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                    <div className="mb-2 flex items-start justify-between">
                         <div>
                             <div className="flex items-center gap-2">
-                                <span className="font-semibold text-slate-800">{msg.name}</span>
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">{msg.requestType}</span>
+                                <span className="font-semibold text-slate-800 dark:text-slate-200">{msg.name}</span>
+                                <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">{msg.requestType}</span>
                             </div>
-                            <p className="text-xs text-slate-400 mt-0.5">{msg.email}</p>
+                            <p className="mt-0.5 text-xs text-slate-400">{msg.email}</p>
                         </div>
-                        <span className="text-xs text-slate-400 whitespace-nowrap">
+                        <span className="whitespace-nowrap text-xs text-slate-400">
                         {new Date(msg.createdAt).toLocaleDateString()}
                         </span>
                     </div>
-                    <p className="text-sm text-slate-600 mb-3 line-clamp-2">{msg.message}</p>
+                    <p className="mb-3 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">{msg.message}</p>
                     
                     {replyingTo === msg._id ? (
-                        <div className="mt-4 bg-white border border-slate-200 rounded-lg p-3">
+                        <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800">
                             <textarea 
-                                className="w-full text-sm border-0 focus:ring-0 p-0 resize-none text-slate-700 placeholder:text-slate-400"
+                                className="w-full resize-none border-0 p-0 text-sm text-slate-700 placeholder:text-slate-400 focus:ring-0 dark:bg-slate-800 dark:text-slate-200"
                                 rows={3}
                                 placeholder={`Reply to ${msg.name}...`}
                                 value={replyContent}
                                 onChange={(e) => setReplyContent(e.target.value)}
                                 autoFocus
                             />
-                            <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-slate-100">
+                            <div className="mt-2 flex justify-end gap-2 border-t border-slate-100 pt-2 dark:border-slate-700">
                                 <button 
                                     onClick={() => { setReplyingTo(null); setReplyContent(""); }}
-                                    className="text-xs px-3 py-1.5 rounded-md text-slate-600 hover:bg-slate-100"
+                                    className="rounded-md px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
                                 >
                                     Cancel
                                 </button>
                                 <button 
                                     onClick={() => handleReply(msg._id)}
-                                    className="text-xs px-3 py-1.5 rounded-md bg-primary text-white hover:bg-primary/90 flex items-center gap-1"
+                                    className="flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs text-white hover:bg-primary/90 dark:bg-sky-600 dark:hover:bg-sky-500"
                                 >
                                     <Send size={12} /> Send Reply
                                 </button>
@@ -197,7 +200,7 @@ const DashboardPage = () => {
                     ) : (
                         <button 
                             onClick={() => setReplyingTo(msg._id)}
-                            className="text-xs font-medium text-primary hover:text-primary/80 flex items-center gap-1"
+                            className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 dark:text-sky-400 dark:hover:text-sky-300"
                         >
                             <MessageCircleMore size={14} /> Reply
                         </button>
@@ -205,7 +208,7 @@ const DashboardPage = () => {
                     </article>
                 ))}
                 {!unreadMessages.length && (
-                    <div className="p-8 text-center text-slate-500 text-sm">
+                    <div className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">
                         No new unread messages.
                     </div>
                 )}
@@ -216,59 +219,39 @@ const DashboardPage = () => {
         {/* Right Column (Sidebar) */}
         <div className="space-y-8">
              {/* Recent Researchers Panel */}
-             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                <div className="p-5 border-b border-slate-100 bg-slate-50/50">
-                    <h3 className="font-semibold text-slate-800">Recent Research</h3>
+             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+                <div className="border-b border-slate-100 bg-slate-50/50 p-5 dark:border-slate-800 dark:bg-slate-800/50">
+                    <h3 className="font-semibold text-slate-800 dark:text-white">Recent Research</h3>
                 </div>
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
                     {recentResearch.map((item) => (
-                        <div key={item._id} className="p-4 hover:bg-slate-50 transition-colors group">
-                            <div className="flex items-start justify-between gap-2 mb-1">
-                                <Link to="/admin/research" className="font-medium text-sm text-slate-800 line-clamp-2 group-hover:text-primary transition-colors">
+                        <div key={item._id} className="group p-4 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                            <div className="mb-1 flex items-start justify-between gap-2">
+                                <Link to="/admin/research" className="line-clamp-2 text-sm font-medium text-slate-800 transition-colors group-hover:text-primary dark:text-slate-200 dark:group-hover:text-sky-400">
                                     {item.title}
                                 </Link>
                             </div>
-                            <div className="flex items-center justify-between mt-2">
-                                <span className="text-xs text-slate-500">{new Date(item.createdAt || Date.now()).toLocaleDateString()}</span>
+                            <div className="mt-2 flex items-center justify-between">
+                                <span className="text-xs text-slate-500 dark:text-slate-400">{new Date(item.createdAt || Date.now()).toLocaleDateString()}</span>
                                 {getStatusBadge(item.status || 'draft')}
                             </div>
                             {item.author && (
-                                <p className="text-xs text-slate-400 mt-2 pt-2 border-t border-slate-100 flex items-center gap-1">
+                                <p className="mt-2 flex items-center gap-1 border-t border-slate-100 pt-2 text-xs text-slate-400 dark:border-slate-800">
                                     <Users size={10} /> {typeof item.author === 'object' ? item.author.name : 'Unknown'}
                                 </p>
                             )}
                         </div>
                     ))}
                     {!recentResearch.length && (
-                         <div className="p-6 text-center text-slate-500 text-xs">
+                         <div className="p-6 text-center text-xs text-slate-500 dark:text-slate-400">
                             No recent research items.
                         </div>
                     )}
                 </div>
-                <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
-                    <Link to="/admin/research" className="text-xs font-medium text-primary hover:underline">
+                <div className="border-t border-slate-100 bg-slate-50 p-3 text-center dark:border-slate-800 dark:bg-slate-800/50">
+                    <Link to="/admin/research" className="text-xs font-medium text-primary hover:underline dark:text-sky-400">
                         View All Research
                     </Link>
-                </div>
-             </div>
-
-             {/* System Status / Quick Info (Placeholder for Future Features) */}
-             <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-800 to-slate-900 text-white shadow-lg p-6 relative overflow-hidden">
-                <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
-                <h3 className="font-semibold mb-2 relative z-10">System Status</h3>
-                <div className="space-y-2 relative z-10">
-                    <div className="flex justify-between text-xs text-slate-300">
-                        <span>Server Status</span>
-                        <span className="text-green-400 font-medium">Online</span>
-                    </div>
-                    <div className="flex justify-between text-xs text-slate-300">
-                        <span>Database</span>
-                        <span className="text-green-400 font-medium">Connected</span>
-                    </div>
-                    <div className="flex justify-between text-xs text-slate-300">
-                        <span>Last Backup</span>
-                        <span>Today, 04:00 AM</span>
-                    </div>
                 </div>
              </div>
         </div>

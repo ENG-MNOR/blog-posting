@@ -11,7 +11,8 @@ import {
   Edit,
   Plus,
   User as UserIcon,
-  Tag
+  Tag,
+  ImageIcon
 } from "lucide-react";
 
 type UserFormValues = {
@@ -20,6 +21,7 @@ type UserFormValues = {
   password?: string;
   role: 'admin' | 'user';
   titles?: string; // Comma separated for input
+  avatar?: FileList;
 };
 
 const InputField = ({ icon: Icon, children }: { icon: any; children: React.ReactNode }) => (
@@ -33,6 +35,13 @@ const UserManagerPage = () => {
   const { data: users, isLoading } = useUsers();
   const mutations = useMutateUsers();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const apiBaseUrl = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "");
+  const getImageSrc = (path?: string) => {
+    if (!path) return "";
+    return path.startsWith("http") ? path : `${apiBaseUrl}${path}`;
+  };
 
   const {
     register,
@@ -45,27 +54,33 @@ const UserManagerPage = () => {
   const onSubmit = async (values: UserFormValues) => {
     const loadingToast = toast.loading("Processing...");
     try {
-      const payload: any = {
-        name: values.name,
-        email: values.email,
-        role: values.role,
-        titles: values.titles ? values.titles.split(',').map(t => t.trim()) : []
-      };
+      const formData = new FormData();
+      formData.append("name", values.name);
+      formData.append("email", values.email);
+      formData.append("role", values.role);
       
+      const titlesArray = values.titles ? values.titles.split(',').map(t => t.trim()).filter(Boolean) : [];
+      // Append titles as JSON string to handle array
+      formData.append("titles", JSON.stringify(titlesArray));
+
       if (values.password) {
-        payload.password = values.password;
+        formData.append("password", values.password);
+      }
+
+      if (selectedFile) {
+        formData.append("avatar", selectedFile);
       }
 
       if (editingId) {
-        if (!values.password) delete payload.password;
-        await mutations.update.mutateAsync({ id: editingId, data: payload });
+        await mutations.update.mutateAsync({ id: editingId, data: formData });
         toast.success("User updated successfully.");
       } else {
-        await mutations.create.mutateAsync(payload);
+        await mutations.create.mutateAsync(formData);
         toast.success("User created successfully.");
       }
       reset();
       setEditingId(null);
+      setSelectedFile(null);
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Something went wrong.");
     } finally {
@@ -79,6 +94,7 @@ const UserManagerPage = () => {
     setValue("email", user.email);
     setValue("role", user.role);
     setValue("titles", user.titles?.join(', ') || "");
+    setSelectedFile(null);
   };
 
   const handleDelete = async (id: string) => {
@@ -179,6 +195,26 @@ const UserManagerPage = () => {
                 </InputField>
               </div>
 
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Avatar</label>
+                <div className="flex items-center gap-2 border rounded-xl px-3 py-2 border-slate-200 cursor-pointer hover:bg-slate-50 transition">
+                   <ImageIcon size={18} className="text-slate-500" />
+                   <input
+                     type="file"
+                     accept="image/*"
+                     className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                     onChange={(e) => {
+                       if (e.target.files?.[0]) {
+                         setSelectedFile(e.target.files[0]);
+                       }
+                     }}
+                   />
+                </div>
+                 {selectedFile && (
+                    <p className="mt-1 text-xs text-primary">Selected: {selectedFile.name}</p>
+                 )}
+              </div>
+
               <div className="flex gap-2 pt-2">
                 <button
                   type="submit"
@@ -194,6 +230,7 @@ const UserManagerPage = () => {
                     onClick={() => {
                       reset();
                       setEditingId(null);
+                      setSelectedFile(null);
                     }}
                     className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
                   >
@@ -220,9 +257,17 @@ const UserManagerPage = () => {
                     users?.map((user) => (
                         <div key={user._id} className="flex items-center justify-between p-4 hover:bg-slate-50">
                             <div className="flex items-center gap-4">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600 font-bold">
-                                    {user.name.charAt(0)}
-                                </div>
+                                {user.avatarUrl ? (
+                                  <img 
+                                    src={getImageSrc(user.avatarUrl)} 
+                                    alt={user.name} 
+                                    className="h-10 w-10 rounded-full object-cover border border-slate-200"
+                                  />
+                                ) : (
+                                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600 font-bold">
+                                      {user.name.charAt(0)}
+                                  </div>
+                                )}
                                 <div>
                                     <h4 className="font-medium text-slate-800">{user.name}</h4>
                                     <div className="flex items-center gap-2 text-xs text-slate-500">

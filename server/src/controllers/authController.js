@@ -167,6 +167,15 @@ export const getUsers = async (req, res) => {
 
 export const createUser = async (req, res) => {
   const { name, email, password, role, titles } = req.body;
+  let parsedTitles = titles;
+  
+  if (typeof titles === 'string') {
+    try {
+      parsedTitles = JSON.parse(titles);
+    } catch (e) {
+       parsedTitles = titles.split(',').map(t => t.trim()).filter(Boolean);
+    }
+  }
 
   if (!name || !email || !password) {
     return res.status(400).json({ message: 'Name, email and password are required' });
@@ -178,14 +187,20 @@ export const createUser = async (req, res) => {
   }
 
   const hashed = await bcrypt.hash(password, 12);
-
-  const user = await User.create({
+  
+  const payload = {
     name,
     email: email.toLowerCase(),
     password: hashed,
     role: role || 'user',
-    titles
-  });
+    titles: parsedTitles
+  };
+
+  if (req.file) {
+    payload.avatarUrl = `/uploads/${req.file.filename}`;
+  }
+
+  const user = await User.create(payload);
 
   return res.status(201).json({ message: 'User created', user: sanitizeUser(user) });
 };
@@ -198,16 +213,40 @@ export const updateUser = async (req, res) => {
     return res.status(404).json({ message: 'User not found' });
   }
 
+  if (email && email.toLowerCase() !== user.email) {
+    const existing = await User.findOne({ email: email.toLowerCase() });
+    if (existing) {
+      return res.status(400).json({ message: 'Email already in use' });
+    }
+    user.email = email.toLowerCase();
+  }
+
   if (name) user.name = name;
-  if (email) user.email = email.toLowerCase();
   if (role) user.role = role;
-  if (titles) user.titles = titles;
+  
+  if (titles) {
+    if (typeof titles === 'string') {
+        try {
+          user.titles = JSON.parse(titles);
+        } catch (e) {
+           user.titles = titles.split(',').map(t => t.trim()).filter(Boolean);
+        }
+    } else {
+        user.titles = titles;
+    }
+  }
+
   if (password) {
     user.password = await bcrypt.hash(password, 12);
   }
 
+  if (req.file) {
+    user.avatarUrl = `/uploads/${req.file.filename}`;
+  }
+
   await user.save();
-  res.json({ message: 'User updated', user: sanitizeUser(user) });
+
+  return res.json({ message: 'User updated', user: sanitizeUser(user) });
 };
 
 export const deleteUser = async (req, res) => {

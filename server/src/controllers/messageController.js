@@ -1,5 +1,5 @@
 import { Message } from '../models/Message.js';
-import { sendContactEmail, sendReplyEmail } from '../utils/email.js';
+import { sendContactEmail } from '../utils/email.js';
 
 export const submitMessage = async (req, res) => {
   const { name, email, requestType, message } = req.body;
@@ -15,7 +15,6 @@ export const submitMessage = async (req, res) => {
     message
   });
 
-  // Notify admin (existing logic)
   sendContactEmail({ name, email, requestType, message }).catch((error) =>
     console.error('Email error', error)
   );
@@ -38,41 +37,5 @@ export const markMessageRead = async (req, res) => {
     return res.status(404).json({ message: 'Message not found' });
   }
   res.json(message);
-};
-
-export const replyToMessage = async (req, res) => {
-  const { message } = req.body; // Reply content
-  const originalMessage = await Message.findById(req.params.id);
-
-  if (!originalMessage) {
-    return res.status(404).json({ message: 'Message not found' });
-  }
-
-  if (!message) {
-    return res.status(400).json({ message: 'Reply message is required' });
-  }
-
-  // Add reply
-  originalMessage.replies.push({
-    body: message,
-    sentBy: req.user._id
-  });
-  originalMessage.status = 'replied';
-  await originalMessage.save();
-
-  // Send email to user
-  try {
-    await sendReplyEmail({
-      name: originalMessage.name,
-      email: originalMessage.email,
-      originalMessage: originalMessage.message,
-      replyMessage: message
-    });
-  } catch (error) {
-    console.error('Failed to send reply email:', error);
-    // Don't fail the request if email fails, just log it
-  }
-  
-  res.json(originalMessage);
 };
 

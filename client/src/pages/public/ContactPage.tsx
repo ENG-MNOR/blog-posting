@@ -57,21 +57,21 @@ const ContactPage = () => {
 
       <div className="grid gap-10 md:grid-cols-2">
         <section>
-          <p className="text-sm uppercase tracking-[0.4em] text-primary/80">
+          <p className="text-sm uppercase tracking-[0.4em] text-primary/80 dark:text-sky-400/80">
             Contact
           </p>
-          <h1 className="font-display text-4xl text-dark">Invite Nour Haji</h1>
+          <h1 className="font-display text-4xl text-slate-900 dark:text-white">Invite Nour Haji</h1>
 
-          <p className="mt-4 text-lg text-slate-600">
+          <p className="mt-4 text-lg text-slate-600 dark:text-slate-300">
             Share details about your seminar, training, or advisory need.
             Nour responds within 2–3 business days.
           </p>
 
-          <div className="mt-8 space-y-4 text-slate-600">
+          <div className="mt-8 space-y-4 text-slate-600 dark:text-slate-300">
             <p>
               Email:{" "}
               <a
-                className="text-primary"
+                className="text-primary dark:text-sky-400"
                 href="mailto:connect@nourhaji.org"
               >
                 connect@nourhaji.org
@@ -82,15 +82,15 @@ const ContactPage = () => {
         </section>
 
         {/* Form */}
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
           <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
             <div>
-              <label className="text-sm font-semibold text-slate-600">  
+              <label className="text-sm font-semibold text-slate-600 dark:text-slate-300">  
                 Name
               </label>
               <input
                 placeholder="Please enter your name"
-                className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 outline-none focus:border-primary"
+                className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-sky-500"
                 {...register("name", { required: "Name is required" })}
               />
               {errors.name && (
@@ -99,13 +99,13 @@ const ContactPage = () => {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-slate-600">
+              <label className="text-sm font-semibold text-slate-600 dark:text-slate-300">
                 Email
               </label>
               <input
                 type="email"
                 placeholder="Please enter your email"
-                className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 outline-none focus:border-primary"
+                className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-sky-500"
                 {...register("email", {
                   required: "Email is required",
                   pattern: {
@@ -120,11 +120,11 @@ const ContactPage = () => {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-slate-600">
+              <label className="text-sm font-semibold text-slate-600 dark:text-slate-300">
                 Request Type
               </label>
               <select
-                className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 outline-none focus:border-primary"
+                className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-sky-500"
                 {...register("requestType")}
               >
                 {requestTypes.map((option) => (
@@ -136,13 +136,13 @@ const ContactPage = () => {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-slate-600">
+              <label className="text-sm font-semibold text-slate-600 dark:text-slate-300">
                 Message
               </label>
               <textarea
                 placeholder="Please enter your message"
                 rows={5}
-                className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 outline-none focus:border-primary"
+                className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-sky-500"
                 {...register("message", { required: "Message is required" })}
               />
               {errors.message && (
@@ -155,7 +155,7 @@ const ContactPage = () => {
             <button
               type="submit"
               disabled={mutation.isPending}
-              className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-white shadow hover:bg-primary/90 disabled:opacity-50"
+              className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-white shadow hover:bg-primary/90 disabled:opacity-50 dark:bg-sky-600 dark:hover:bg-sky-500"
             >
               {mutation.isPending ? "Sending..." : "Send Message"}
             </button>

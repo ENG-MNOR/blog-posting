@@ -33,6 +33,7 @@ export interface EventItem {
   role: string;
   date: string;
   location?: string;
+  link?: string;
   description?: string;
   category: 'upcoming' | 'past';
   images?: string[];
