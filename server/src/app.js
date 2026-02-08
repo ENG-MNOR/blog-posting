@@ -1,5 +1,6 @@
 import 'express-async-errors';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -10,6 +11,9 @@ import rateLimit from 'express-rate-limit';
 import { env } from './config/env.js';
 import router from './routes/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const allowedOrigins = new Set(env.clientOrigins);
 const corsOptions = {
@@ -54,6 +58,15 @@ app.use('/uploads', (req, res, next) => {
 }, express.static(path.resolve(env.uploadsDir)));
 
 app.use('/api', router);
+
+// Serve static files from React app
+const clientBuildPath = path.join(__dirname, '../../client/dist');
+app.use(express.static(clientBuildPath));
+
+// Handle any requests that don't match the above
+app.get('*', (req, res) => {
+  res.sendFile(path.join(clientBuildPath, 'index.html'));
+});
 
 app.use(errorHandler);
 

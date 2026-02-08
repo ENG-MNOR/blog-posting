@@ -14,6 +14,7 @@ import {
   FileText,
   User,
   Briefcase,
+  X,
 } from "lucide-react";
 
 type EventFormValues = {
@@ -23,14 +24,16 @@ type EventFormValues = {
   location: string;
   description: string;
   materialsUrl: string;
+  link?: string;
 };
 
 const EventManagerPage = () => {
   const { data } = useEvents();
   const mutations = useMutateEvents();
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [selectedImages, setSelectedImages] = useState<FileList | null>(null);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [existingImages, setExistingImages] = useState<string[]>([]);
+  const [removedImages, setRemovedImages] = useState<string[]>([]);
 
   const apiBaseUrl =
     (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(
@@ -60,10 +63,18 @@ const EventManagerPage = () => {
       formData.append("location", values.location);
       formData.append("description", values.description);
       formData.append("materialsUrl", values.materialsUrl || "");
+      if (values.link) formData.append("link", values.link);
+
+      // If no new images are selected, send existing images to preserve/update them
+      if (existingImages.length > 0) {
+        existingImages.forEach(img => formData.append("existingImages", img));
+      } else {
+        // Explicitly signal to clear images if needed, or if we just want to ensure the backend knows we have no existing images
+        formData.append("clearImages", "true");
+      }
 
       if (selectedImages?.length) {
         Array.from(selectedImages)
-          .slice(0, 3)
           .forEach((file) => formData.append("images", file));
       }
 
@@ -76,7 +87,7 @@ const EventManagerPage = () => {
       }
       reset();
       setEditingId(null);
-      setSelectedImages(null);
+      setSelectedImages([]);
       setExistingImages([]);
     } catch (error) {
       toast.error("Something went wrong!");
@@ -91,8 +102,9 @@ const EventManagerPage = () => {
     setValue("location", item.location || "");
     setValue("description", item.description || "");
     setValue("materialsUrl", item.materialsUrl || "");
+    setValue("link", item.link || "");
     setExistingImages(item.images || (item.imageUrl ? [item.imageUrl] : []));
-    setSelectedImages(null);
+    setSelectedImages([]);
   };
 
   const handleDelete = async (id: string) => {
@@ -103,7 +115,7 @@ const EventManagerPage = () => {
         if (editingId === id) {
           reset();
           setEditingId(null);
-          setSelectedImages(null);
+          setSelectedImages([]);
           setExistingImages([]);
         }
       } catch (error) {
@@ -124,7 +136,7 @@ const EventManagerPage = () => {
             onClick={() => {
               reset();
               setEditingId(null);
-              setSelectedImages(null);
+              setSelectedImages([]);
               setExistingImages([]);
             }}
           >
@@ -134,75 +146,103 @@ const EventManagerPage = () => {
 
         <div className="mt-4 space-y-3">
           {data?.map((event) => (
-        <article
-  key={event._id}
-  className="rounded-2xl border border-slate-100 p-4"
->
-  <div className="flex justify-between gap-4">
-    {/* Content + images */}
-    <div className="flex-1">
-      <p className="text-xs uppercase tracking-wide text-secondary">
-        {event.role}
-      </p>
-      <h3 className="text-lg font-semibold text-dark">
-        {event.name}
-      </h3>
+            <article
+              key={event._id}
+              className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
+            >
+              <div className="flex flex-col gap-4 sm:flex-row">
+                {/* Content */}
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary dark:bg-primary/20 dark:text-sky-400">
+                      {event.role}
+                    </span>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${new Date(event.date) >= new Date() ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
+                      {new Date(event.date) >= new Date() ? 'Upcoming' : 'Past'}
+                    </span>
+                  </div>
 
-      <p className="text-sm text-slate-500 flex items-center gap-1">
-        <Calendar size={14} />
-        {new Date(event.date).toLocaleDateString()}
-      </p>
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+                    {event.name}
+                  </h3>
 
-      <p className="text-sm text-slate-500 flex items-center gap-1">
-        <MapPin size={14} />
-        {event.location}
-      </p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-slate-500 dark:text-slate-400">
+                    <div className="flex items-center gap-1.5">
+                      <Calendar size={15} className="text-slate-400" />
+                      {new Date(event.date).toLocaleDateString(undefined, {
+                        weekday: 'short',
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <MapPin size={15} className="text-slate-400" />
+                      {event.location}
+                    </div>
+                  </div>
+                  
+                  {event.description && (
+                    <p className="line-clamp-2 text-sm text-slate-600 dark:text-slate-400">
+                      {event.description}
+                    </p>
+                  )}
 
-      {/* Images BELOW content */}
-      {(() => {
-        const imgs = event.images?.length
-          ? event.images.slice(0, 3)
-          : event.imageUrl
-          ? [event.imageUrl]
-          : [];
+                  {event.link && (
+                    <a 
+                      href={event.link} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline dark:text-sky-400"
+                    >
+                      <LinkIcon size={14} />
+                      External Link
+                    </a>
+                  )}
 
-        return imgs.length ? (
-          <div className="flex gap-2 mt-3">
-            {imgs.map((img) => (
-              <img
-                key={img}
-                src={getImageSrc(img)}
-                alt={event.name}
-                className="h-20 w-20 rounded-xl object-cover border border-slate-200 shadow-sm"
-              />
-            ))}
-          </div>
-        ) : null;
-      })()}
-    </div>
+                  {/* Images Preview Row */}
+                  {(() => {
+                    const imgs = event.images?.length
+                      ? event.images
+                      : event.imageUrl
+                      ? [event.imageUrl]
+                      : [];
 
-    {/* Buttons */}
-    <div className="flex flex-col gap-2 text-sm">
-      <button
-        className="text-primary flex items-center gap-1"
-        onClick={() => handleEdit(event)}
-      >
-        <Edit size={16} />
-        Edit
-      </button>
+                    return imgs.length ? (
+                      <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
+                        {imgs.map((img) => (
+                          <img
+                            key={img}
+                            src={getImageSrc(img)}
+                            alt={event.name}
+                            className="h-16 w-16 flex-none rounded-lg object-cover border border-slate-100 shadow-sm dark:border-slate-800"
+                          />
+                        ))}
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
 
-      <button
-        className="text-red-500 flex items-center gap-1"
-        onClick={() => handleDelete(event._id)}
-      >
-        <Trash2 size={16} />
-        Delete
-      </button>
-    </div>
-  </div>
-</article>
+                {/* Actions */}
+                <div className="flex flex-row gap-2 sm:flex-col sm:border-l sm:border-slate-100 sm:pl-4 sm:dark:border-slate-800">
+                  <button
+                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-primary/10 hover:text-primary dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 sm:flex-none"
+                    onClick={() => handleEdit(event)}
+                  >
+                    <Edit size={16} />
+                    <span>Edit</span>
+                  </button>
 
-
+                  <button
+                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 sm:flex-none"
+                    onClick={() => handleDelete(event._id)}
+                  >
+                    <Trash2 size={16} />
+                    <span>Delete</span>
+                  </button>
+                </div>
+              </div>
+            </article>
           ))}
           {!data?.length && (
             <p className="text-sm text-slate-500">No events recorded yet.</p>
@@ -294,6 +334,19 @@ const EventManagerPage = () => {
             )}
           </div>
 
+          {/** Link */}
+          <div>
+            <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2">
+              <LinkIcon size={18} className="text-slate-500" />
+              <input
+                type="url"
+                placeholder="External Link (URL)"
+                className="w-full outline-none text-sm"
+                {...register("link")}
+              />
+            </div>
+          </div>
+
           {/** Description */}
           <div>
             <div
@@ -316,40 +369,77 @@ const EventManagerPage = () => {
 
           {/** Images Upload */}
           <div>
-            <label className="flex items-center gap-2 border rounded-xl px-3 py-2 border-slate-200 cursor-pointer">
+            <label className="flex items-center gap-2 border rounded-xl px-3 py-2 border-slate-200 cursor-pointer hover:bg-slate-50 transition">
               <ImageIcon size={18} className="text-slate-500" />
+              <span className="text-sm text-slate-500">Upload Images</span>
               <input
                 type="file"
                 accept="image/*"
                 multiple
-                className="w-full text-sm"
-                onChange={(e) => setSelectedImages(e.target.files)}
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files) {
+                    setSelectedImages((prev) => [
+                      ...prev,
+                      ...Array.from(e.target.files!),
+                    ]);
+                  }
+                }}
               />
             </label>
-            {(selectedImages?.length || existingImages.length) ? (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {selectedImages &&
-                  Array.from(selectedImages)
-                    .slice(0, 3)
-                    .map((file) => (
-                      <span
-                        key={file.name}
-                        className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700"
-                      >
-                        {file.name}
-                      </span>
-                    ))}
-                {!selectedImages &&
-                  existingImages.map((src) => (
+            
+            {(selectedImages.length > 0 || existingImages.length > 0) && (
+              <div className="mt-3 grid grid-cols-4 gap-2">
+                {/* New Images Preview */}
+                {selectedImages.map((file, idx) => (
+                  <div key={idx} className="relative aspect-square group">
                     <img
-                      key={src}
-                      src={getImageSrc(src)}
-                      alt="Event"
-                      className="h-16 w-16 rounded-lg object-cover border border-slate-200"
+                      src={URL.createObjectURL(file)}
+                      alt="Preview"
+                      className="h-full w-full rounded-lg object-cover border border-slate-200"
                     />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedImages((prev) =>
+                          prev.filter((_, i) => i !== idx)
+                        )
+                      }
+                      className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+                
+                {/* Existing Images (always show, allow delete) */}
+                {existingImages.map((src, idx) => (
+                    <div key={src} className="relative aspect-square group">
+                      <img
+                        src={getImageSrc(src)}
+                        alt="Existing"
+                        className="h-full w-full rounded-lg object-cover border border-slate-200"
+                      />
+                       <button
+                        type="button"
+                        onClick={() =>
+                          setExistingImages((prev) =>
+                            prev.filter((_, i) => i !== idx)
+                          )
+                        }
+                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
                   ))}
               </div>
-            ) : null}
+            )}
+            {selectedImages.length > 0 && existingImages.length > 0 && (
+               <p className="text-xs text-slate-500 mt-2">
+                 New images will be appended to existing ones.
+               </p>
+            )}
           </div>
 
           {/** Materials/Link URL */}

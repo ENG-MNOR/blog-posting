@@ -1,11 +1,19 @@
 import { Research } from '../models/Research.js';
 
 export const listResearch = async (req, res) => {
-  const { topic, year } = req.query;
+  const { topic, year, status } = req.query;
 
   const query = {};
   if (topic) query.topic = topic;
   if (year) query.year = Number(year);
+  
+  // If not authenticated as admin (public route), force published status
+  if (!req.user || req.user.role !== 'admin') {
+    query.status = 'published';
+  } else if (status) {
+    // If admin, allow filtering by status if provided
+    query.status = status;
+  }
 
   const research = await Research.find(query).sort({ year: -1, createdAt: -1 });
   res.json(research);

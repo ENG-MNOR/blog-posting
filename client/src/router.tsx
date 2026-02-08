@@ -69,6 +69,7 @@ import EventManagerPage from '@/pages/admin/EventManagerPage';
 import ContentManagerPage from '@/pages/admin/ContentManagerPage';
 import MessageCenterPage from '@/pages/admin/MessageCenterPage';
 import SettingsPage from '@/pages/admin/SettingsPage';
+import UserManagerPage from '@/pages/admin/UserManagerPage';
 
 const router = createBrowserRouter([
   {
@@ -99,6 +100,7 @@ const router = createBrowserRouter([
           { path: 'events', element: <EventManagerPage /> },
           { path: 'content', element: <ContentManagerPage /> },
           { path: 'messages', element: <MessageCenterPage /> },
+          { path: 'users', element: <UserManagerPage /> },
           { path: 'settings', element: <SettingsPage /> },
         ]
       }

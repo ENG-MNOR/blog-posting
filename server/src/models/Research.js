@@ -10,6 +10,11 @@ const researchSchema = new mongoose.Schema(
     summary: { type: String, required: true },
     pdfUrl: String,
     externalLink: String,
+    status: {
+      type: String,
+      enum: ['draft', 'pending_review', 'published'],
+      default: 'draft'
+    },
     keywords: [{ type: String }],
     featured: { type: Boolean, default: false },
     slug: { type: String, unique: true }

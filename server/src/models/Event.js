@@ -7,6 +7,7 @@ const eventSchema = new mongoose.Schema(
     role: { type: String, required: true },
     date: { type: Date, required: true },
     location: { type: String },
+    link: { type: String },
     description: { type: String },
     category: { type: String, enum: ['upcoming', 'past'], default: 'upcoming' },
     images: { type: [String], default: [] },

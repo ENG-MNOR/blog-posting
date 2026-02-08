@@ -1,6 +1,7 @@
-export type UserRole = 'admin';
+export type UserRole = 'admin' | 'user';
 
 export interface User {
+  _id: string;
   id: string;
   name: string;
   email: string;
@@ -20,6 +21,10 @@ export interface Research {
   externalLink?: string;
   keywords?: string[];
   featured?: boolean;
+  status: 'draft' | 'pending_review' | 'published';
+  author?: User | string;
+  slug?: string;
+  createdAt?: string;
 }
 
 export interface EventItem {
@@ -28,6 +33,7 @@ export interface EventItem {
   role: string;
   date: string;
   location?: string;
+  link?: string;
   description?: string;
   category: 'upcoming' | 'past';
   images?: string[];
@@ -53,13 +59,20 @@ export interface ContentBlock {
   };
 }
 
+export interface MessageReply {
+  body: string;
+  sentAt: string;
+  sentBy: string;
+}
+
 export interface Message {
   _id: string;
   name: string;
   email: string;
   requestType: string;
   message: string;
-  status: 'unread' | 'read';
+  status: 'unread' | 'read' | 'replied';
+  replies?: MessageReply[];
   createdAt: string;
 }
 
