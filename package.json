@@ -1,5 +1,13 @@
 {
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "build": "npm run build --prefix client",
+    "lint": "npm run lint --prefix server && npm run lint --prefix client"
+  },
   "dependencies": {
     "lucide-react": "^0.554.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
   }
 }

@@ -24,8 +24,8 @@ export const useResearch = (params?: { topic?: string; year?: number }) =>
     queryFn: async () => {
       const queryParams = params
         ? Object.fromEntries(
-            Object.entries(params).filter(([, value]) => value !== undefined && value !== '')
-          )
+          Object.entries(params).filter(([, value]) => value !== undefined && value !== '')
+        )
         : undefined;
       const { data } = await apiClient.get<Research[]>('/research', {
         params: queryParams
@@ -40,8 +40,8 @@ export const useDashboardResearch = (params?: { topic?: string; year?: number; s
     queryFn: async () => {
       const queryParams = params
         ? Object.fromEntries(
-            Object.entries(params).filter(([, value]) => value !== undefined && value !== '')
-          )
+          Object.entries(params).filter(([, value]) => value !== undefined && value !== '')
+        )
         : undefined;
       const { data } = await apiClient.get<Research[]>('/research/dashboard', {
         params: queryParams
@@ -87,11 +87,11 @@ export const useMutateResearch = () => {
   const invalidate = () => client.invalidateQueries({ queryKey: ['research'] });
   return {
     create: useMutation({
-      mutationFn: (payload: Partial<Research>) => apiClient.post('/research', payload),
+      mutationFn: (payload: Partial<Research> | FormData) => apiClient.post('/research', payload),
       onSuccess: invalidate
     }),
     update: useMutation({
-      mutationFn: ({ id, data }: { id: string; data: Partial<Research> }) =>
+      mutationFn: ({ id, data }: { id: string; data: Partial<Research> | FormData }) =>
         apiClient.put(`/research/${id}`, data),
       onSuccess: invalidate
     }),
@@ -132,11 +132,12 @@ export const useMutateUsers = () => {
   const invalidate = () => client.invalidateQueries({ queryKey: ['users'] });
   return {
     create: useMutation({
-      mutationFn: (payload: Partial<User> & { password?: string }) => apiClient.post('/auth/users', payload),
+      mutationFn: (payload: (Partial<User> & { password?: string }) | FormData) =>
+        apiClient.post('/auth/users', payload),
       onSuccess: invalidate
     }),
     update: useMutation({
-      mutationFn: ({ id, data }: { id: string; data: Partial<User> & { password?: string } }) =>
+      mutationFn: ({ id, data }: { id: string; data: (Partial<User> & { password?: string }) | FormData }) =>
         apiClient.put(`/auth/users/${id}`, data),
       onSuccess: invalidate
     }),
@@ -161,14 +162,14 @@ export const useMutateContent = (slug: 'home' | 'about') => {
 export const useMutateMessages = () => {
   const client = useQueryClient();
   const invalidate = () => client.invalidateQueries({ queryKey: ['messages'] });
-  
+
   return {
     markRead: useMutation({
       mutationFn: (id: string) => apiClient.patch(`/messages/${id}/read`),
       onSuccess: invalidate
     }),
     reply: useMutation({
-      mutationFn: ({ id, reply }: { id: string; reply: string }) => 
+      mutationFn: ({ id, reply }: { id: string; reply: string }) =>
         apiClient.post(`/messages/${id}/reply`, { message: reply }),
       onSuccess: invalidate
     })
@@ -196,7 +197,7 @@ export const useProfileMutation = () => {
       }
     }),
     updatePassword: useMutation({
-      mutationFn: (data: { currentPassword: string; newPassword: string }) => 
+      mutationFn: (data: { currentPassword: string; newPassword: string }) =>
         apiClient.put('/auth/password', data)
     })
   };
