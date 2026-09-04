@@ -29,7 +29,7 @@ const SiteHeader = () => {
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-slate-100 dark:bg-slate-900/90 dark:border-slate-800 transition-colors duration-300">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.4em] text-slate-500 dark:text-slate-400">Nour Haji Osman</p>
+          <p className="text-xs uppercase tracking-[0.4em] text-slate-500 dark:text-slate-400">Nor Haji Osman</p>
           <p className="font-display text-lg text-primary dark:text-sky-400">Public Health Leader</p>
         </div>
 

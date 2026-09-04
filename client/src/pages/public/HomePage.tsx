@@ -32,7 +32,7 @@ const HomePage = () => {
   return (
     <>
       <Helmet>
-        <title>Nour Haji Osman | Public Health Expert</title>
+        <title>Nor Haji Osman | Public Health Expert</title>
         <meta
           name="description"
           content="Building resilient health information systems across the Horn of Africa."
@@ -54,7 +54,7 @@ const HomePage = () => {
 
           <p className="text-lg text-slate-600 dark:text-slate-300">
             {homeContent?.heroSubtext ||
-              'Nour Haji Osman partners with ministries, donors, and global agencies to advance HMIS, IDSR, immunization, and data use initiatives.'}
+              'Nor Haji Osman partners with ministries, donors, and global agencies to advance HMIS, IDSR, immunization, and data use initiatives.'}
           </p>
 
           <div className="flex flex-wrap gap-3">
@@ -87,7 +87,7 @@ const HomePage = () => {
           {getImageSrc(homeContent?.profilePhoto) ? (
             <img
               src={getImageSrc(homeContent?.profilePhoto)}
-              alt="Nour Haji Osman"
+              alt="Nor Haji Osman"
               className="w-full max-w-md rounded-3xl shadow-lg object-cover"
             />
           ) : (

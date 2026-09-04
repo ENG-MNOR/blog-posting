@@ -52,7 +52,7 @@ const ContactPage = () => {
   return (
     <>
       <Helmet>
-        <title>Contact | Nour Haji</title>
+        <title>Contact | Nor Haji</title>
       </Helmet>
 
       <div className="grid gap-10 md:grid-cols-2">
@@ -60,11 +60,11 @@ const ContactPage = () => {
           <p className="text-sm uppercase tracking-[0.4em] text-primary/80 dark:text-sky-400/80">
             Contact
           </p>
-          <h1 className="font-display text-4xl text-slate-900 dark:text-white">Invite Nour Haji</h1>
+          <h1 className="font-display text-4xl text-slate-900 dark:text-white">Invite Nor Haji</h1>
 
           <p className="mt-4 text-lg text-slate-600 dark:text-slate-300">
             Share details about your seminar, training, or advisory need.
-            Nour responds within 2–3 business days.
+            Nor responds within 2–3 business days.
           </p>
 
           <div className="mt-8 space-y-4 text-slate-600 dark:text-slate-300">
@@ -72,9 +72,9 @@ const ContactPage = () => {
               Email:{" "}
               <a
                 className="text-primary dark:text-sky-400"
-                href="mailto:connect@nourhaji.org"
+                href="mailto:connect@norhaji.org"
               >
-                connect@nourhaji.org
+                connect@norhaji.org
               </a>
             </p>
             <p>Location: Nairobi, supporting the Horn of Africa.</p>

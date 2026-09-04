@@ -1,6 +1,6 @@
-## Dr. Nour Haji Portfolio – MERN Stack
+## Dr. Nor Haji Portfolio – MERN Stack
 
-Full-stack portfolio + admin workspace for public health expert Dr. Nour Haji Osman. Built with React (Vite + Tailwind) on the frontend and Node/Express + MongoDB on the backend.
+Full-stack portfolio + admin workspace for public health expert Dr. Nor Haji Osman. Built with React (Vite + Tailwind) on the frontend and Node/Express + MongoDB on the backend.
 
 ### Features
 - **Public site:** hero overview, bio, research list with filters, event calendar (upcoming vs past), and contact form that emails + stores submissions.

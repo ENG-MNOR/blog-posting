@@ -33,7 +33,7 @@ const ResearchPage = () => {
   return (
     <>
       <Helmet>
-        <title>Research & Publications | Nour Haji</title>
+        <title>Research & Publications | Nor Haji</title>
       </Helmet>
       <div className="space-y-8">
         <div>
