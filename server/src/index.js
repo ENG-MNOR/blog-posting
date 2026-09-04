@@ -13,8 +13,19 @@ const start = async () => {
   ensureUploadsDir();
   await connectDB(env.mongoUri);
 
-  app.listen(env.port, () => {
+  const server = app.listen(env.port, () => {
     console.log(`API running on port ${env.port}`);
+  });
+
+  server.on('error', (error) => {
+    if (error.code === 'EACCES') {
+      console.error(`Port ${env.port} is blocked. Set PORT in server/.env to another value (e.g. 5001).`);
+    } else if (error.code === 'EADDRINUSE') {
+      console.error(`Port ${env.port} is already in use. Stop the other process or change PORT in server/.env.`);
+    } else {
+      console.error(error);
+    }
+    process.exit(1);
   });
 };
 
