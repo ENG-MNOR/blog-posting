@@ -93,7 +93,7 @@ export const userCreateSchema = z
     name: trimmed(120).min(2, 'Name is required'),
     email: trimmed(200).email('A valid email is required'),
     password,
-    role: z.enum(['admin', 'editor']).optional(),
+    role: z.enum(['admin', 'user']).optional(),
     titles: z.union([z.string(), z.array(z.string())]).optional(),
   })
   .passthrough();
@@ -103,7 +103,7 @@ export const userUpdateSchema = z
     name: trimmed(120).min(2).optional(),
     email: trimmed(200).email().optional(),
     password: password.optional(),
-    role: z.enum(['admin', 'editor']).optional(),
+    role: z.enum(['admin', 'user']).optional(),
     titles: z.union([z.string(), z.array(z.string())]).optional(),
   })
   .passthrough();

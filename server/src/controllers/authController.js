@@ -209,7 +209,7 @@ export const createUser = async (req, res) => {
     name,
     email: email.toLowerCase(),
     password: hashed,
-    role: role === 'admin' ? 'admin' : 'editor',
+    role: role === 'admin' ? 'admin' : 'user',
     titles: parseTitles(titles)
   };
 
@@ -245,7 +245,7 @@ export const updateUser = async (req, res) => {
     if (user.role === 'admin' && role !== 'admin' && (await countAdmins()) <= 1) {
       return res.status(400).json({ message: 'Cannot change the role of the last admin' });
     }
-    user.role = role === 'admin' ? 'admin' : 'editor';
+    user.role = role === 'admin' ? 'admin' : 'user';
   }
 
   const parsedTitles = parseTitles(titles);

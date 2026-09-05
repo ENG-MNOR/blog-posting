@@ -42,7 +42,7 @@ export const userSchema = (isEdit: boolean) =>
     password: isEdit
       ? z.string().min(8, 'Use at least 8 characters').optional().or(z.literal(''))
       : z.string().min(8, 'Use at least 8 characters'),
-    role: z.enum(['admin', 'editor']),
+    role: z.enum(['admin', 'user']),
     titles: z.string().trim().max(400).optional(),
   });
 

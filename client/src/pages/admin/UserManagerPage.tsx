@@ -39,7 +39,7 @@ const UserManagerPage = () => {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: '', email: '', password: '', role: 'editor', titles: '' },
+    defaultValues: { name: '', email: '', password: '', role: 'user', titles: '' },
   });
 
   const admins = useMemo(() => (data ?? []).filter((u) => u.role === 'admin'), [data]);
@@ -54,7 +54,7 @@ const UserManagerPage = () => {
   const resetForm = () => {
     setEditingId(null);
     setAvatar(null);
-    reset({ name: '', email: '', password: '', role: 'editor', titles: '' });
+    reset({ name: '', email: '', password: '', role: 'user', titles: '' });
   };
 
   const startEdit = (u: User) => {
@@ -64,7 +64,7 @@ const UserManagerPage = () => {
       name: u.name,
       email: u.email,
       password: '',
-      role: (u.role === 'admin' ? 'admin' : 'editor') as FormValues['role'],
+      role: (u.role === 'admin' ? 'admin' : 'user') as FormValues['role'],
       titles: u.titles?.join(', ') ?? '',
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -220,7 +220,7 @@ const UserManagerPage = () => {
             <div>
               <Label htmlFor="role">Role</Label>
               <Select id="role" error={errors.role?.message} {...register('role')}>
-                <option value="editor">User</option>
+                <option value="user">User</option>
                 <option value="admin">Admin</option>
               </Select>
             </div>
