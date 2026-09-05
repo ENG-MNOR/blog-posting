@@ -2,17 +2,24 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/jpeg" href="/logo.jpeg " />
+    <link rel="icon" type="image/jpeg" href="/logo.jpeg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0F4C81" />
     <title>Nor Haji Osman | Public Health Leader</title>
+    <script>
+      // Set the theme class before first paint to avoid a flash of the wrong theme.
+      (function () {
+        try {
+          var stored = localStorage.getItem('theme');
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var isDark = stored ? stored === 'dark' : prefersDark;
+          document.documentElement.classList.toggle('dark', isDark);
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="font-body bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-300">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-
-
-
-
-

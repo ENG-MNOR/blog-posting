@@ -132,11 +132,12 @@ export const useMutateUsers = () => {
   const invalidate = () => client.invalidateQueries({ queryKey: ['users'] });
   return {
     create: useMutation({
-      mutationFn: (payload: Partial<User> & { password?: string }) => apiClient.post('/auth/users', payload),
+      mutationFn: (payload: FormData | (Partial<User> & { password?: string })) =>
+        apiClient.post('/auth/users', payload),
       onSuccess: invalidate
     }),
     update: useMutation({
-      mutationFn: ({ id, data }: { id: string; data: Partial<User> & { password?: string } }) =>
+      mutationFn: ({ id, data }: { id: string; data: FormData | (Partial<User> & { password?: string }) }) =>
         apiClient.put(`/auth/users/${id}`, data),
       onSuccess: invalidate
     }),

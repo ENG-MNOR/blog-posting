@@ -5,26 +5,127 @@
 @layer base {
   :root {
     color-scheme: light;
+
+    /* Brand */
+    --color-primary: 15 76 129; /* #0F4C81 navy */
+    --color-primary-foreground: 248 250 252;
+    --color-secondary: 14 154 167; /* #0E9AA7 teal */
+    --color-secondary-foreground: 248 250 252;
+    --color-accent: 246 205 97; /* #F6CD61 gold */
+    --color-accent-foreground: 30 41 59;
+
+    /* Surfaces */
+    --color-background: 248 250 252; /* slate-50 */
+    --color-foreground: 15 23 42; /* slate-900 */
+    --color-surface: 255 255 255;
+    --color-surface-muted: 241 245 249; /* slate-100 */
+    --color-card: 255 255 255;
+    --color-card-foreground: 15 23 42;
+    --color-popover: 255 255 255;
+    --color-popover-foreground: 15 23 42;
+    --color-muted: 241 245 249;
+    --color-muted-foreground: 100 116 139; /* slate-500 */
+
+    /* Lines & focus */
+    --color-border: 226 232 240; /* slate-200 */
+    --color-input: 226 232 240;
+    --color-ring: 15 76 129;
+
+    /* Semantic */
+    --color-destructive: 220 38 38;
+    --color-destructive-foreground: 248 250 252;
+    --color-success: 22 163 74;
+    --color-success-foreground: 248 250 252;
+    --color-warning: 202 138 4;
+    --color-warning-foreground: 248 250 252;
+
+    --radius: 1rem;
   }
-  
+
   .dark {
     color-scheme: dark;
+
+    --color-primary: 56 160 226; /* lightened navy for contrast on dark */
+    --color-primary-foreground: 8 15 26;
+    --color-secondary: 45 212 191; /* teal-300 */
+    --color-secondary-foreground: 8 15 26;
+    --color-accent: 250 214 120;
+    --color-accent-foreground: 8 15 26;
+
+    --color-background: 8 15 26; /* near slate-950 */
+    --color-foreground: 226 232 240;
+    --color-surface: 15 23 42; /* slate-900 */
+    --color-surface-muted: 30 41 59; /* slate-800 */
+    --color-card: 15 23 42;
+    --color-card-foreground: 226 232 240;
+    --color-popover: 15 23 42;
+    --color-popover-foreground: 226 232 240;
+    --color-muted: 30 41 59;
+    --color-muted-foreground: 148 163 184; /* slate-400 */
+
+    --color-border: 30 41 59;
+    --color-input: 30 41 59;
+    --color-ring: 56 160 226;
+
+    --color-destructive: 248 113 113;
+    --color-destructive-foreground: 8 15 26;
+    --color-success: 74 222 128;
+    --color-success-foreground: 8 15 26;
+    --color-warning: 250 204 21;
+    --color-warning-foreground: 8 15 26;
+  }
+
+  * {
+    border-color: theme('colors.border');
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
-    @apply font-sans bg-slate-50 text-slate-900 transition-colors duration-300;
+    @apply bg-background font-sans text-foreground antialiased;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
-  .dark body {
-    @apply bg-slate-950 text-slate-100;
+  /* Respect users who prefer less motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
-* {
-  box-sizing: border-box;
+@layer components {
+  .skeleton {
+    @apply relative overflow-hidden rounded-md bg-muted;
+  }
+  .skeleton::after {
+    @apply absolute inset-0 -translate-x-full;
+    content: '';
+    background-image: linear-gradient(
+      90deg,
+      rgb(255 255 255 / 0) 0,
+      rgb(255 255 255 / 0.35) 50%,
+      rgb(255 255 255 / 0) 100%
+    );
+    animation: shimmer 1.6s infinite;
+  }
+  .dark .skeleton::after {
+    background-image: linear-gradient(
+      90deg,
+      rgb(255 255 255 / 0) 0,
+      rgb(255 255 255 / 0.06) 50%,
+      rgb(255 255 255 / 0) 100%
+    );
+  }
+
+  .focus-ring {
+    @apply outline-none ring-offset-2 ring-offset-background focus-visible:ring-2 focus-visible:ring-ring;
+  }
 }
-
-
-
-
-

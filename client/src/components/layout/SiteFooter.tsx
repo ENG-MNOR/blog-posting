@@ -1,27 +1,53 @@
-import { Facebook, Linkedin, Mail } from "lucide-react";
-import { FaWhatsapp } from "react-icons/fa";
+import { Mail } from 'lucide-react';
+import { FaWhatsapp, FaFacebookF, FaLinkedinIn } from 'react-icons/fa';
+
+const socials = [
+  {
+    label: 'Facebook',
+    href: 'https://facebook.com/nuurhaji.osman',
+    icon: FaFacebookF,
+  },
+  {
+    label: 'LinkedIn',
+    href: 'https://linkedin.com/in/nor-haji-osman-4b9365151/',
+    icon: FaLinkedinIn,
+  },
+  {
+    label: 'WhatsApp',
+    href: 'https://wa.me/252615213035',
+    icon: FaWhatsapp,
+  },
+  {
+    label: 'Email',
+    href: 'mailto:norhaji@just.edu.so',
+    icon: Mail,
+  },
+];
 
 const SiteFooter = () => {
   return (
-    <footer className="border-t border-slate-200 bg-white transition-colors duration-300 dark:border-slate-800 dark:bg-slate-900">
-      <div className="mx-auto flex max-w-6xl flex-col gap-2 px-6 py-6 text-sm text-slate-700 md:flex-row md:items-center md:justify-between dark:text-slate-400">
-        <p>© {new Date().getFullYear()} Nor Haji Osman. All rights reserved.</p>
+    <footer className="border-t border-border bg-surface transition-colors duration-300">
+      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-8 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="font-display text-base text-foreground">Nor Haji Osman</p>
+          <p className="mt-0.5 text-xs">
+            © {new Date().getFullYear()} · Strengthening health systems across the Horn of Africa.
+          </p>
+        </div>
 
-        <div className="flex items-center gap-3 text-xs">
-          <p>Follow Us:</p>
-
-          <a href="http://facebook.com/nuurhaji.osman" className="hover:text-slate-700 transition dark:hover:text-slate-200">
-            <Facebook size={16} />
-          </a>
-          <a href="http://linkedin.com/in/nor-haji-osman-4b9365151/" className="hover:text-slate-700 transition dark:hover:text-slate-200">
-            <Linkedin size={16} />
-          </a>
-          <a href="http://wa.me/+252615213035" className="hover:text-slate-700 transition dark:hover:text-slate-200">
-            <FaWhatsapp size={16} />
-          </a>
-          <a href="mailto:norhaji@just.edu.so" className="hover:text-slate-700 transition dark:hover:text-slate-200">
-            <Mail size={16} />
-          </a>
+        <div className="flex items-center gap-2">
+          {socials.map(({ label, href, icon: Icon }) => (
+            <a
+              key={label}
+              href={href}
+              target={href.startsWith('mailto:') ? undefined : '_blank'}
+              rel="noopener noreferrer"
+              aria-label={label}
+              className="rounded-full border border-border p-2 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+            >
+              <Icon size={15} aria-hidden />
+            </a>
+          ))}
         </div>
       </div>
     </footer>
@@ -29,8 +55,3 @@ const SiteFooter = () => {
 };
 
 export default SiteFooter;
-
-
-
-
-
