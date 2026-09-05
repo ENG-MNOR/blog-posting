@@ -14,7 +14,9 @@ const eventImages = (event: EventItem) =>
   (event.images?.length ? event.images : event.imageUrl ? [event.imageUrl] : []).map(resolveMediaUrl);
 
 const EventCard = ({ event }: { event: EventItem }) => {
-  const images = eventImages(event);
+  const allImages = eventImages(event);
+  const [broken, setBroken] = useState<Set<string>>(new Set());
+  const images = allImages.filter((src) => !broken.has(src));
   const [lightbox, setLightbox] = useState<string | null>(null);
 
   return (
@@ -81,6 +83,7 @@ const EventCard = ({ event }: { event: EventItem }) => {
                 src={img}
                 alt={event.name}
                 loading="lazy"
+                onError={() => setBroken((prev) => new Set(prev).add(img))}
                 className="h-24 w-full object-cover transition-transform hover:scale-105"
               />
             </button>

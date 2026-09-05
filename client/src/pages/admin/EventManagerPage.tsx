@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Edit, ImagePlus, Plus, Search, Trash2, X } from 'lucide-react';
+import { Edit, Plus, Search, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useEvents, useMutateEvents } from '@/hooks/useApi';
 import { toApiError } from '@/api/client';
@@ -14,9 +14,11 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea, Label } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Img } from '@/components/ui/image';
 import { DataTable } from '@/components/ui/data-table';
 import { ConfirmDialog, useConfirm } from '@/components/ui/confirm-dialog';
 import { Spinner } from '@/components/ui/spinner';
+import { ImageUploader, type UploaderItem } from '@/components/admin/ImageUploader';
 
 const emptyValues: EventFormValues = {
   name: '',
@@ -35,8 +37,7 @@ const EventManagerPage = () => {
   const { data, isLoading, isError, refetch } = useEvents();
   const mutations = useMutateEvents();
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [newImages, setNewImages] = useState<File[]>([]);
-  const [keptImages, setKeptImages] = useState<string[]>([]);
+  const [imageItems, setImageItems] = useState<UploaderItem[]>([]);
   const [query, setQuery] = useState('');
   const confirm = useConfirm<EventItem>();
 
@@ -47,10 +48,6 @@ const EventManagerPage = () => {
     formState: { errors, isSubmitting },
   } = useForm<EventFormValues>({ resolver: zodResolver(eventSchema), defaultValues: emptyValues });
 
-  // Object URLs for previews — revoked on change/unmount to avoid leaks.
-  const previews = useMemo(() => newImages.map((file) => URL.createObjectURL(file)), [newImages]);
-  useEffect(() => () => previews.forEach((url) => URL.revokeObjectURL(url)), [previews]);
-
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
     return (data ?? []).filter(
@@ -60,15 +57,14 @@ const EventManagerPage = () => {
 
   const resetForm = () => {
     setEditingId(null);
-    setNewImages([]);
-    setKeptImages([]);
+    setImageItems([]);
     reset(emptyValues);
   };
 
   const startEdit = (event: EventItem) => {
     setEditingId(event._id);
-    setNewImages([]);
-    setKeptImages(event.images?.length ? event.images : event.imageUrl ? [event.imageUrl] : []);
+    const existing = event.images?.length ? event.images : event.imageUrl ? [event.imageUrl] : [];
+    setImageItems(existing.map((url) => ({ kind: 'existing', url })));
     reset({
       name: event.name,
       role: event.role,
@@ -91,11 +87,22 @@ const EventManagerPage = () => {
     fd.append('link', values.link ?? '');
     fd.append('materialsUrl', values.materialsUrl ?? '');
 
-    if (editingId) {
-      keptImages.forEach((img) => fd.append('existingImages', img));
-      if (keptImages.length === 0 && newImages.length === 0) fd.append('clearImages', 'true');
+    // Ordered image payload: existing URLs kept, new files uploaded, and an
+    // imageOrder token list so the server can rebuild the exact sequence.
+    const order: string[] = [];
+    let newIndex = 0;
+    for (const item of imageItems) {
+      if (item.kind === 'existing') {
+        fd.append('existingImages', item.url);
+        order.push(`existing:${item.url}`);
+      } else {
+        fd.append('images', item.file);
+        order.push(`new:${newIndex}`);
+        newIndex += 1;
+      }
     }
-    newImages.forEach((file) => fd.append('images', file));
+    fd.append('imageOrder', JSON.stringify(order));
+    if (editingId && imageItems.length === 0) fd.append('clearImages', 'true');
 
     try {
       if (editingId) {
@@ -113,6 +120,22 @@ const EventManagerPage = () => {
 
   const columns = useMemo<ColumnDef<EventItem, unknown>[]>(
     () => [
+      {
+        id: 'cover',
+        header: '',
+        enableSorting: false,
+        cell: ({ row }) => {
+          const cover = row.original.images?.[0] ?? row.original.imageUrl;
+          return (
+            <Img
+              src={resolveMediaUrl(cover)}
+              alt=""
+              compact
+              wrapperClassName="h-10 w-10 shrink-0 rounded-lg border border-border"
+            />
+          );
+        },
+      },
       {
         accessorKey: 'name',
         header: 'Event',
@@ -225,54 +248,7 @@ const EventManagerPage = () => {
               <Input id="materialsUrl" placeholder="https://…" error={errors.materialsUrl?.message} {...register('materialsUrl')} />
             </div>
 
-            <div>
-              <Label>Images</Label>
-              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-input bg-surface px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted">
-                <ImagePlus size={16} />
-                Add images
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files) setNewImages((prev) => [...prev, ...Array.from(e.target.files!)]);
-                    e.target.value = '';
-                  }}
-                />
-              </label>
-
-              {(keptImages.length > 0 || previews.length > 0) && (
-                <div className="mt-3 grid grid-cols-4 gap-2">
-                  {keptImages.map((src, idx) => (
-                    <figure key={src} className="group relative aspect-square">
-                      <img src={resolveMediaUrl(src)} alt="" className="h-full w-full rounded-lg border border-border object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => setKeptImages((prev) => prev.filter((_, i) => i !== idx))}
-                        className="absolute -right-1.5 -top-1.5 rounded-full bg-destructive p-0.5 text-destructive-foreground shadow"
-                        aria-label="Remove image"
-                      >
-                        <X size={12} />
-                      </button>
-                    </figure>
-                  ))}
-                  {previews.map((src, idx) => (
-                    <figure key={src} className="group relative aspect-square">
-                      <img src={src} alt="" className="h-full w-full rounded-lg border border-border object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => setNewImages((prev) => prev.filter((_, i) => i !== idx))}
-                        className="absolute -right-1.5 -top-1.5 rounded-full bg-destructive p-0.5 text-destructive-foreground shadow"
-                        aria-label="Remove image"
-                      >
-                        <X size={12} />
-                      </button>
-                    </figure>
-                  ))}
-                </div>
-              )}
-            </div>
+            <ImageUploader items={imageItems} onChange={setImageItems} max={3} />
           </div>
 
           <div className="mt-5 flex gap-2">

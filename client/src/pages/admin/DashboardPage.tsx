@@ -22,7 +22,9 @@ import {
 } from 'lucide-react';
 import { useDashboardResearch, useEvents, useMessages, useUsers } from '@/hooks/useApi';
 import { useAuthStore } from '@/store/auth';
+import { resolveMediaUrl } from '@/lib/media';
 import { useChartTheme } from '@/lib/chart-theme';
+import { Img } from '@/components/ui/image';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { Badge } from '@/components/ui/badge';
@@ -106,6 +108,14 @@ const DashboardPage = () => {
         )
         .slice(0, 5),
     [researchList],
+  );
+  const recentEvents = useMemo(
+    () =>
+      [...eventList]
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        .filter((e) => e.category === 'upcoming' || new Date(e.date).getTime() >= Date.now())
+        .slice(0, 5),
+    [eventList],
   );
 
   const anyLoading = research.isLoading || events.isLoading || messages.isLoading;
@@ -260,7 +270,64 @@ const DashboardPage = () => {
         </ChartCard>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-3">
+        <section className="rounded-2xl border border-border bg-card shadow-soft">
+          <div className="flex items-center justify-between border-b border-border p-5">
+            <h3 className="text-sm font-semibold text-foreground">Upcoming events</h3>
+            <Link to="/admin/events" className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              View all <ArrowRight size={12} />
+            </Link>
+          </div>
+          <div className="divide-y divide-border">
+            {events.isLoading && !eventList.length ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="p-5">
+                  <div className="skeleton h-4 w-2/3" />
+                  <div className="skeleton mt-2 h-3 w-1/3" />
+                </div>
+              ))
+            ) : events.isError ? (
+              <div className="p-5">
+                <p className="text-sm text-destructive">Could not load events.</p>
+              </div>
+            ) : recentEvents.length ? (
+              recentEvents.map((e) => (
+                <article key={e._id} className="flex items-start gap-3 p-5">
+                  <Img
+                    src={resolveMediaUrl(e.images?.[0] ?? e.imageUrl)}
+                    alt=""
+                    compact
+                    wrapperClassName="h-10 w-10 shrink-0 rounded-lg border border-border"
+                  />
+                  <div className="min-w-0">
+                    <Link
+                      to="/admin/events"
+                      className="line-clamp-1 text-sm font-medium text-foreground hover:text-primary"
+                    >
+                      {e.name}
+                    </Link>
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                      <CalendarClock className="h-3 w-3" />
+                      {new Date(e.date).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                      {e.location ? ` · ${e.location}` : ''}
+                    </p>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <EmptyState
+                title="Nothing scheduled"
+                className="border-0 bg-transparent"
+                icon={<CalendarClock className="h-5 w-5" />}
+              />
+            )}
+          </div>
+        </section>
+
         <section className="rounded-2xl border border-border bg-card shadow-soft">
           <div className="flex items-center justify-between border-b border-border p-5">
             <h3 className="text-sm font-semibold text-foreground">Recent messages</h3>

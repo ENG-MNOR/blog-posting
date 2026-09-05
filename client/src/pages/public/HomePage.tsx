@@ -4,6 +4,7 @@ import { ArrowRight, ArrowUpRight, CalendarDays, MapPin } from 'lucide-react';
 import { useContent, useEvents, useResearch } from '@/hooks/useApi';
 import { resolveMediaUrl } from '@/lib/media';
 import { Button } from '@/components/ui/button';
+import { Img } from '@/components/ui/image';
 import { Badge } from '@/components/ui/badge';
 import { AnimatedCounter } from '@/components/ui/counter';
 import { Reveal, RevealGroup, revealItem } from '@/components/ui/reveal';
@@ -127,18 +128,13 @@ const HomePage = () => {
             className="relative mx-auto w-full max-w-sm"
           >
             <div className="absolute -inset-3 -z-10 rounded-[2rem] bg-gradient-to-br from-primary/20 via-transparent to-secondary/20 blur-xl" />
-            {photo ? (
-              <img
-                src={photo}
-                alt="Nor Haji Osman"
-                className="aspect-[4/5] w-full rounded-[1.75rem] border border-border object-cover shadow-lifted"
-                loading="eager"
-              />
-            ) : (
-              <div className="flex aspect-[4/5] w-full items-center justify-center rounded-[1.75rem] border border-dashed border-border bg-muted text-sm text-muted-foreground">
-                Portrait coming soon
-              </div>
-            )}
+            <Img
+              src={photo}
+              alt="Nor Haji Osman"
+              fallbackLabel="Portrait coming soon"
+              wrapperClassName="aspect-[4/5] w-full rounded-[1.75rem] border border-border shadow-lifted"
+              loading="eager"
+            />
           </motion.div>
         </div>
       </section>
