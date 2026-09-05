@@ -1,260 +1,350 @@
-import { useState } from 'react';
-import { useDashboardResearch, useEvents, useMessages, useUsers, useMutateMessages } from '@/hooks/useApi';
-import { useAuthStore } from '@/store/auth';
+import { useMemo } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
-import toast from 'react-hot-toast';
 import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import {
+  CalendarClock,
   FileSearch,
-  CalendarDays,
-  History,
-  MessageCircleMore,
-  Users,
+  MailWarning,
+  Users as UsersIcon,
   ArrowRight,
-  CheckCircle,
-  Clock,
-  File,
-  Send,
-  X
 } from 'lucide-react';
+import { useDashboardResearch, useEvents, useMessages, useUsers } from '@/hooks/useApi';
+import { useAuthStore } from '@/store/auth';
+import { useChartTheme } from '@/lib/chart-theme';
+import { PageHeader } from '@/components/ui/page-header';
+import { StatCard } from '@/components/ui/stat-card';
+import { Badge } from '@/components/ui/badge';
+import { ChartCard } from '@/components/admin/ChartCard';
+import { EmptyState } from '@/components/ui/states';
 
-// StatCard with icons
-const StatCard = ({
-  label,
-  value,
-  icon: Icon,
-  colorClass = "bg-primary/10 text-primary"
-}: {
-  label: string;
-  value: number | string;
-  icon: any;
-  colorClass?: string;
-}) => (
-  <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:scale-[1.02] dark:border-slate-800 dark:bg-slate-900">
-    <div className={`rounded-xl p-3 ${colorClass}`}>
-      <Icon size={26} />
-    </div>
-    <div>
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-        {label}
-      </p>
-      <p className="mt-1 text-3xl font-bold text-slate-800 dark:text-white">{value}</p>
-    </div>
-  </div>
-);
+const statusLabels: Record<string, string> = {
+  draft: 'Draft',
+  pending_review: 'Pending',
+  published: 'Published',
+};
 
 const DashboardPage = () => {
-  const user = useAuthStore((state) => state.user);
-  const { data: research } = useDashboardResearch();
-  const { data: upcoming } = useEvents('upcoming');
-  const { data: past } = useEvents('past');
-  const { data: allEvents } = useEvents();
-  const { data: messages } = useMessages();
-  const { data: users } = useUsers(); // Will fetch if admin, or fail gracefully/return empty if not authorized (handled by API/hook logic usually, but we should guard)
-  
-  const messageMutations = useMutateMessages();
-  const [replyingTo, setReplyingTo] = useState<string | null>(null);
-  const [replyContent, setReplyContent] = useState("");
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === 'admin';
+  const chart = useChartTheme();
 
-  const unreadMessages = messages?.filter(m => m.status === 'unread') || [];
-  const recentResearch = research ? [...research].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 2) : [];
+  const research = useDashboardResearch();
+  const events = useEvents();
+  const messages = useMessages();
+  const users = useUsers({ enabled: isAdmin });
 
-  const handleReply = async (messageId: string) => {
-    if (!replyContent.trim()) return;
-    const toastId = toast.loading("Sending reply...");
-    try {
-      await messageMutations.reply.mutateAsync({ id: messageId, reply: replyContent });
-      toast.success("Reply sent successfully");
-      setReplyingTo(null);
-      setReplyContent("");
-    } catch (error) {
-      toast.error("Failed to send reply");
-    } finally {
-      toast.dismiss(toastId);
-    }
-  };
+  const researchList = research.data ?? [];
+  const eventList = events.data ?? [];
+  const messageList = messages.data ?? [];
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'published':
-        return <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300"><CheckCircle size={10} /> Published</span>;
-      case 'pending_review':
-        return <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-[10px] font-medium text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"><Clock size={10} /> Pending</span>;
-      default:
-        return <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-800 dark:bg-slate-800 dark:text-slate-300"><File size={10} /> Draft</span>;
-    }
-  };
+  const unread = messageList.filter((m) => m.status === 'unread');
+  const published = researchList.filter((r) => r.status === 'published');
+  const upcoming = eventList.filter(
+    (e) => e.category === 'upcoming' || new Date(e.date).getTime() >= Date.now(),
+  );
+
+  const statusData = useMemo(() => {
+    const counts = researchList.reduce<Record<string, number>>((acc, r) => {
+      const key = r.status || 'draft';
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(counts).map(([key, value]) => ({
+      name: statusLabels[key] ?? key,
+      value,
+    }));
+  }, [researchList]);
+
+  const yearData = useMemo(() => {
+    const counts = researchList.reduce<Record<string, number>>((acc, r) => {
+      const key = String(r.year ?? '—');
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(counts)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([year, count]) => ({ year, count }));
+  }, [researchList]);
+
+  const requestTypeData = useMemo(() => {
+    const counts = messageList.reduce<Record<string, number>>((acc, m) => {
+      const key = m.requestType || 'other';
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(counts).map(([type, count]) => ({
+      type: type.charAt(0).toUpperCase() + type.slice(1),
+      count,
+    }));
+  }, [messageList]);
+
+  const recentMessages = useMemo(
+    () =>
+      [...messageList]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 5),
+    [messageList],
+  );
+  const recentResearch = useMemo(
+    () =>
+      [...researchList]
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
+        )
+        .slice(0, 5),
+    [researchList],
+  );
+
+  const anyLoading = research.isLoading || events.isLoading || messages.isLoading;
 
   return (
     <div className="space-y-8">
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.4em] text-primary/70 dark:text-sky-400/70">
-          Overview
-        </p>
-        <h1 className="mt-1 text-3xl font-bold text-slate-800 dark:text-white">Welcome back, {user?.name}</h1>
-      </div>
+      <Helmet>
+        <title>Dashboard | Admin</title>
+      </Helmet>
 
-      {/* Stat Cards */}
+      <PageHeader
+        eyebrow="Overview"
+        title={`Welcome back, ${user?.name?.split(' ')[0] ?? 'Admin'}`}
+        description="A snapshot of research, engagements, and inbound requests."
+      />
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label="Research Entries"
-          value={research?.length ?? 0}
+          label="Research entries"
+          value={researchList.length}
+          hint={`${published.length} published`}
           icon={FileSearch}
-          colorClass="bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
+          to="/admin/research"
+          loading={research.isLoading}
+          tone="primary"
         />
         <StatCard
-          label="Unread Messages"
-          value={unreadMessages.length}
-          icon={MessageCircleMore}
-          colorClass="bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400"
-        />
-     <StatCard
-          label="Total Upcoming Events"
-          value={upcoming?.length ?? 0}
-          icon={CalendarDays}
-          colorClass="bg-primary/10 text-primary dark:bg-sky-900/20 dark:text-sky-400"
+          label="Upcoming events"
+          value={upcoming.length}
+          hint={`${eventList.length} total`}
+          icon={CalendarClock}
+          to="/admin/events"
+          loading={events.isLoading}
+          tone="secondary"
         />
         <StatCard
-          label="Total Recent Events"
-          value={past?.length ?? 0}
-          icon={History}
-          colorClass="bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+          label="Unread messages"
+          value={unread.length}
+          hint={`${messageList.length} total`}
+          icon={MailWarning}
+          to="/admin/messages"
+          loading={messages.isLoading}
+          tone={unread.length ? 'warning' : 'success'}
         />
-        <StatCard
-          label="Total Unread Messages"
-          value={messages?.filter((m) => m.status === 'unread').length ?? 0}
-          icon={MessageCircleMore}
-          colorClass="bg-pink-50 text-pink-600 dark:bg-pink-900/20 dark:text-pink-400"
-        />
-
-        {user?.role === 'admin' ? (
-           <StatCard
-            label="Total Users"
-            value={users?.length ?? 0}
-            icon={Users}
-            colorClass="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400"
+        {isAdmin ? (
+          <StatCard
+            label="Team members"
+            value={users.data?.length ?? 0}
+            icon={UsersIcon}
+            to="/admin/users"
+            loading={users.isLoading}
+            tone="success"
           />
         ) : (
           <StatCard
-            label="Past Events"
-            value={past?.length ?? 0}
-            icon={History}
-            colorClass="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+            label="Past events"
+            value={eventList.length - upcoming.length}
+            icon={CalendarClock}
+            to="/admin/events"
+            loading={events.isLoading}
+            tone="primary"
           />
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        {/* Left Column (Main Content) */}
-        <div className="space-y-8 lg:col-span-2">
-            
-            {/* Recent Messages */}
-            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
-                <div className="flex items-center justify-between border-b border-slate-100 p-6 dark:border-slate-800">
-                    <h2 className="text-lg font-bold text-slate-800 dark:text-white">Recent Unread Messages</h2>
-                    <Link to="/admin/messages" className="flex items-center gap-1 text-xs font-medium text-primary hover:underline dark:text-sky-400">
-                        View All <ArrowRight size={12} />
-                    </Link>
-                </div>
-                <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                {unreadMessages.slice(0, 3).map((msg) => (
-                    <article key={msg._id} className="p-6 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <div className="mb-2 flex items-start justify-between">
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <span className="font-semibold text-slate-800 dark:text-slate-200">{msg.name}</span>
-                                <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">{msg.requestType}</span>
-                            </div>
-                            <p className="mt-0.5 text-xs text-slate-400">{msg.email}</p>
-                        </div>
-                        <span className="whitespace-nowrap text-xs text-slate-400">
-                        {new Date(msg.createdAt).toLocaleDateString()}
-                        </span>
-                    </div>
-                    <p className="mb-3 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">{msg.message}</p>
-                    
-                    {replyingTo === msg._id ? (
-                        <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800">
-                            <textarea 
-                                className="w-full resize-none border-0 p-0 text-sm text-slate-700 placeholder:text-slate-400 focus:ring-0 dark:bg-slate-800 dark:text-slate-200"
-                                rows={3}
-                                placeholder={`Reply to ${msg.name}...`}
-                                value={replyContent}
-                                onChange={(e) => setReplyContent(e.target.value)}
-                                autoFocus
-                            />
-                            <div className="mt-2 flex justify-end gap-2 border-t border-slate-100 pt-2 dark:border-slate-700">
-                                <button 
-                                    onClick={() => { setReplyingTo(null); setReplyContent(""); }}
-                                    className="rounded-md px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
-                                >
-                                    Cancel
-                                </button>
-                                <button 
-                                    onClick={() => handleReply(msg._id)}
-                                    className="flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs text-white hover:bg-primary/90 dark:bg-sky-600 dark:hover:bg-sky-500"
-                                >
-                                    <Send size={12} /> Send Reply
-                                </button>
-                            </div>
-                        </div>
-                    ) : (
-                        <button 
-                            onClick={() => setReplyingTo(msg._id)}
-                            className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 dark:text-sky-400 dark:hover:text-sky-300"
-                        >
-                            <MessageCircleMore size={14} /> Reply
-                        </button>
-                    )}
-                    </article>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <ChartCard
+          title="Research by status"
+          loading={research.isLoading}
+          error={research.isError}
+          onRetry={() => research.refetch()}
+          isEmpty={statusData.length === 0}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={statusData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={3}>
+                {statusData.map((entry, i) => (
+                  <Cell key={entry.name} fill={chart.categorical[i % chart.categorical.length]} />
                 ))}
-                {!unreadMessages.length && (
-                    <div className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                        No new unread messages.
-                    </div>
-                )}
-                </div>
-            </section>
-        </div>
+              </Pie>
+              <Tooltip
+                contentStyle={{
+                  background: 'rgb(var(--color-popover))',
+                  border: '1px solid rgb(var(--color-border))',
+                  borderRadius: 12,
+                  color: 'rgb(var(--color-popover-foreground))',
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="mt-2 flex flex-wrap justify-center gap-3">
+            {statusData.map((entry, i) => (
+              <span key={entry.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ background: chart.categorical[i % chart.categorical.length] }}
+                />
+                {entry.name} ({entry.value})
+              </span>
+            ))}
+          </div>
+        </ChartCard>
 
-        {/* Right Column (Sidebar) */}
-        <div className="space-y-8">
-             {/* Recent Researchers Panel */}
-             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
-                <div className="border-b border-slate-100 bg-slate-50/50 p-5 dark:border-slate-800 dark:bg-slate-800/50">
-                    <h3 className="font-semibold text-slate-800 dark:text-white">Recent Research</h3>
+        <ChartCard
+          title="Research by year"
+          loading={research.isLoading}
+          error={research.isError}
+          onRetry={() => research.refetch()}
+          isEmpty={yearData.length === 0}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={yearData}>
+              <CartesianGrid vertical={false} stroke={chart.grid} strokeDasharray="3 3" />
+              <XAxis dataKey="year" tick={{ fill: chart.axis, fontSize: 12 }} axisLine={false} tickLine={false} />
+              <YAxis allowDecimals={false} tick={{ fill: chart.axis, fontSize: 12 }} axisLine={false} tickLine={false} width={28} />
+              <Tooltip
+                cursor={{ fill: 'rgb(var(--color-muted) / 0.6)' }}
+                contentStyle={{
+                  background: 'rgb(var(--color-popover))',
+                  border: '1px solid rgb(var(--color-border))',
+                  borderRadius: 12,
+                }}
+              />
+              <Bar dataKey="count" fill={chart.primary} radius={[6, 6, 0, 0]} maxBarSize={40} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard
+          title="Requests by type"
+          loading={messages.isLoading}
+          error={messages.isError}
+          onRetry={() => messages.refetch()}
+          isEmpty={requestTypeData.length === 0}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={requestTypeData} layout="vertical">
+              <CartesianGrid horizontal={false} stroke={chart.grid} strokeDasharray="3 3" />
+              <XAxis type="number" allowDecimals={false} tick={{ fill: chart.axis, fontSize: 12 }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="type" width={90} tick={{ fill: chart.axis, fontSize: 12 }} axisLine={false} tickLine={false} />
+              <Tooltip
+                cursor={{ fill: 'rgb(var(--color-muted) / 0.6)' }}
+                contentStyle={{
+                  background: 'rgb(var(--color-popover))',
+                  border: '1px solid rgb(var(--color-border))',
+                  borderRadius: 12,
+                }}
+              />
+              <Bar dataKey="count" fill={chart.secondary} radius={[0, 6, 6, 0]} maxBarSize={22} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="rounded-2xl border border-border bg-card shadow-soft">
+          <div className="flex items-center justify-between border-b border-border p-5">
+            <h3 className="text-sm font-semibold text-foreground">Recent messages</h3>
+            <Link to="/admin/messages" className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              View all <ArrowRight size={12} />
+            </Link>
+          </div>
+          <div className="divide-y divide-border">
+            {anyLoading && !messageList.length ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="p-5">
+                  <div className="skeleton h-4 w-1/3" />
+                  <div className="skeleton mt-2 h-3 w-2/3" />
                 </div>
-                <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {recentResearch.map((item) => (
-                        <div key={item._id} className="group p-4 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                            <div className="mb-1 flex items-start justify-between gap-2">
-                                <Link to="/admin/research" className="line-clamp-2 text-sm font-medium text-slate-800 transition-colors group-hover:text-primary dark:text-slate-200 dark:group-hover:text-sky-400">
-                                    {item.title}
-                                </Link>
-                            </div>
-                            <div className="mt-2 flex items-center justify-between">
-                                <span className="text-xs text-slate-500 dark:text-slate-400">{new Date(item.createdAt || Date.now()).toLocaleDateString()}</span>
-                                {getStatusBadge(item.status || 'draft')}
-                            </div>
-                            {item.author && (
-                                <p className="mt-2 flex items-center gap-1 border-t border-slate-100 pt-2 text-xs text-slate-400 dark:border-slate-800">
-                                    <Users size={10} /> {typeof item.author === 'object' ? item.author.name : 'Unknown'}
-                                </p>
-                            )}
-                        </div>
-                    ))}
-                    {!recentResearch.length && (
-                         <div className="p-6 text-center text-xs text-slate-500 dark:text-slate-400">
-                            No recent research items.
-                        </div>
-                    )}
+              ))
+            ) : recentMessages.length ? (
+              recentMessages.map((m) => (
+                <article key={m._id} className="p-5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-foreground">{m.name}</span>
+                      <Badge variant={m.status === 'unread' ? 'warning' : 'muted'}>{m.status}</Badge>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(m.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{m.message}</p>
+                </article>
+              ))
+            ) : (
+              <EmptyState title="No messages yet" className="border-0 bg-transparent" icon={<MailWarning className="h-5 w-5" />} />
+            )}
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-border bg-card shadow-soft">
+          <div className="flex items-center justify-between border-b border-border p-5">
+            <h3 className="text-sm font-semibold text-foreground">Recent research</h3>
+            <Link to="/admin/research" className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              View all <ArrowRight size={12} />
+            </Link>
+          </div>
+          <div className="divide-y divide-border">
+            {research.isLoading && !researchList.length ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="p-5">
+                  <div className="skeleton h-4 w-2/3" />
+                  <div className="skeleton mt-2 h-3 w-1/3" />
                 </div>
-                <div className="border-t border-slate-100 bg-slate-50 p-3 text-center dark:border-slate-800 dark:bg-slate-800/50">
-                    <Link to="/admin/research" className="text-xs font-medium text-primary hover:underline dark:text-sky-400">
-                        View All Research
+              ))
+            ) : recentResearch.length ? (
+              recentResearch.map((r) => (
+                <article key={r._id} className="p-5">
+                  <div className="flex items-start justify-between gap-2">
+                    <Link
+                      to="/admin/research"
+                      className="line-clamp-2 text-sm font-medium text-foreground hover:text-primary"
+                    >
+                      {r.title}
                     </Link>
-                </div>
-             </div>
-        </div>
+                    <Badge
+                      variant={
+                        r.status === 'published'
+                          ? 'success'
+                          : r.status === 'pending_review'
+                            ? 'warning'
+                            : 'muted'
+                      }
+                    >
+                      {statusLabels[r.status] ?? r.status}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {r.year}
+                    {r.journal ? ` · ${r.journal}` : ''}
+                  </p>
+                </article>
+              ))
+            ) : (
+              <EmptyState title="No research yet" className="border-0 bg-transparent" icon={<FileSearch className="h-5 w-5" />} />
+            )}
+          </div>
+        </section>
       </div>
     </div>
   );

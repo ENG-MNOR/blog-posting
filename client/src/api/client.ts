@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
@@ -15,7 +15,7 @@ export const setRefreshHandler = (handler: () => Promise<string | null>) => {
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true
+  withCredentials: true,
 });
 
 apiClient.interceptors.request.use((config) => {
@@ -23,7 +23,7 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  // Don't override Content-Type for FormData - browser sets it automatically with boundary
+  // Let the browser set multipart boundaries itself.
   if (config.data instanceof FormData) {
     delete config.headers['Content-Type'];
   }
@@ -32,29 +32,47 @@ apiClient.interceptors.request.use((config) => {
 
 apiClient.interceptors.response.use(
   (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-    if (
-      error.response?.status === 401 &&
-      !originalRequest._retry &&
-      refreshHandler
-    ) {
+  async (error: AxiosError) => {
+    const originalRequest = error.config as (typeof error.config & { _retry?: boolean }) | undefined;
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && refreshHandler) {
       originalRequest._retry = true;
       try {
         const token = await refreshHandler();
         if (token) {
+          originalRequest.headers = originalRequest.headers ?? {};
           originalRequest.headers.Authorization = `Bearer ${token}`;
           return apiClient(originalRequest);
         }
       } catch {
-        // swallow
+        /* fall through */
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
 
+export interface NormalizedError {
+  message: string;
+  status?: number;
+  fieldErrors: Record<string, string>;
+}
 
-
-
-
+/** Turn any thrown value into a predictable shape for toasts and form errors. */
+export const toApiError = (error: unknown): NormalizedError => {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as
+      | { message?: string; errors?: Array<{ path?: string; field?: string; message: string }> }
+      | undefined;
+    const fieldErrors: Record<string, string> = {};
+    for (const item of data?.errors ?? []) {
+      const key = item.path ?? item.field;
+      if (key) fieldErrors[key] = item.message;
+    }
+    return {
+      message: data?.message || error.message || 'Request failed',
+      status: error.response?.status,
+      fieldErrors,
+    };
+  }
+  return { message: error instanceof Error ? error.message : 'Something went wrong', fieldErrors: {} };
+};

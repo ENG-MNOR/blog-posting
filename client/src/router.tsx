@@ -1,9 +1,11 @@
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 
 import AppLayout from '@/components/layout/AppLayout';
 import AdminLayout from '@/components/layout/AdminLayout';
 import ProtectedRoute from '@/components/common/ProtectedRoute';
 import RoleRoute from '@/components/common/RoleRoute';
+import { LoadingScreen } from '@/components/ui/spinner';
 
 import HomePage from '@/pages/public/HomePage';
 import AboutPage from '@/pages/public/AboutPage';
@@ -12,14 +14,19 @@ import EventsPage from '@/pages/public/EventsPage';
 import ContactPage from '@/pages/public/ContactPage';
 import NotFoundPage from '@/pages/public/NotFoundPage';
 
-import AdminLoginPage from '@/pages/admin/AdminLoginPage';
-import DashboardPage from '@/pages/admin/DashboardPage';
-import ResearchManagerPage from '@/pages/admin/ResearchManagerPage';
-import EventManagerPage from '@/pages/admin/EventManagerPage';
-import ContentManagerPage from '@/pages/admin/ContentManagerPage';
-import MessageCenterPage from '@/pages/admin/MessageCenterPage';
-import SettingsPage from '@/pages/admin/SettingsPage';
-import UserManagerPage from '@/pages/admin/UserManagerPage';
+// Admin bundle is code-split — visitors never download it.
+const AdminLoginPage = lazy(() => import('@/pages/admin/AdminLoginPage'));
+const DashboardPage = lazy(() => import('@/pages/admin/DashboardPage'));
+const ResearchManagerPage = lazy(() => import('@/pages/admin/ResearchManagerPage'));
+const EventManagerPage = lazy(() => import('@/pages/admin/EventManagerPage'));
+const ContentManagerPage = lazy(() => import('@/pages/admin/ContentManagerPage'));
+const MessageCenterPage = lazy(() => import('@/pages/admin/MessageCenterPage'));
+const SettingsPage = lazy(() => import('@/pages/admin/SettingsPage'));
+const UserManagerPage = lazy(() => import('@/pages/admin/UserManagerPage'));
+
+const lazyPage = (node: React.ReactNode) => (
+  <Suspense fallback={<LoadingScreen />}>{node}</Suspense>
+);
 
 const router = createBrowserRouter([
   {
@@ -35,7 +42,7 @@ const router = createBrowserRouter([
   },
 
   // Admin login — standalone, no chrome
-  { path: '/admin/login', element: <AdminLoginPage /> },
+  { path: '/admin/login', element: lazyPage(<AdminLoginPage />) },
 
   // Authenticated admin area
   {
@@ -46,15 +53,15 @@ const router = createBrowserRouter([
         element: <AdminLayout />,
         children: [
           { index: true, element: <Navigate to="dashboard" replace /> },
-          { path: 'dashboard', element: <DashboardPage /> },
-          { path: 'research', element: <ResearchManagerPage /> },
-          { path: 'events', element: <EventManagerPage /> },
-          { path: 'content', element: <ContentManagerPage /> },
-          { path: 'messages', element: <MessageCenterPage /> },
-          { path: 'settings', element: <SettingsPage /> },
+          { path: 'dashboard', element: lazyPage(<DashboardPage />) },
+          { path: 'research', element: lazyPage(<ResearchManagerPage />) },
+          { path: 'events', element: lazyPage(<EventManagerPage />) },
+          { path: 'content', element: lazyPage(<ContentManagerPage />) },
+          { path: 'messages', element: lazyPage(<MessageCenterPage />) },
+          { path: 'settings', element: lazyPage(<SettingsPage />) },
           {
             element: <RoleRoute role="admin" />,
-            children: [{ path: 'users', element: <UserManagerPage /> }],
+            children: [{ path: 'users', element: lazyPage(<UserManagerPage />) }],
           },
         ],
       },

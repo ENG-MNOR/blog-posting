@@ -1,97 +1,118 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Helmet } from 'react-helmet-async';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import type { Location } from 'react-router-dom';
+import { Lock, LogIn, Mail } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
-import { Mail, Lock, Eye, EyeOff, LogIn, ArrowLeft } from 'lucide-react';
+import { toApiError } from '@/api/client';
+import { Button } from '@/components/ui/button';
+import { Input, Label } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
 
-type LoginValues = {
-  email: string;
-  password: string;
-};
+const schema = z.object({
+  email: z.string().min(1, 'Email is required').email('Enter a valid email'),
+  password: z.string().min(1, 'Password is required'),
+});
+type LoginValues = z.infer<typeof schema>;
 
 const AdminLoginPage = () => {
-  const login = useAuthStore((state) => state.login);
-  const status = useAuthStore((state) => state.status);
+  const login = useAuthStore((s) => s.login);
+  const status = useAuthStore((s) => s.status);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const refresh = useAuthStore((s) => s.refresh);
   const navigate = useNavigate();
   const location = useLocation();
-  const [showPassword, setShowPassword] = useState(false);
+
+  // If a refresh cookie is still valid, don't make the user log in again.
+  useEffect(() => {
+    if (!accessToken && status === 'idle') void refresh();
+  }, [accessToken, status, refresh]);
 
   const {
     register,
     handleSubmit,
-    formState: { errors },
-    setError
-  } = useForm<LoginValues>();
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginValues>({ resolver: zodResolver(schema) });
+
+  if (status === 'authenticated' && accessToken) {
+    const from = (location.state as { from?: Location })?.from?.pathname || '/admin/dashboard';
+    return <Navigate to={from} replace />;
+  }
 
   const onSubmit = async (values: LoginValues) => {
     try {
       await login(values.email, values.password);
       const from = (location.state as { from?: Location })?.from?.pathname || '/admin/dashboard';
       navigate(from, { replace: true });
-    } catch {
-      setError('password', { message: 'Invalid credentials' });
+    } catch (error) {
+      const { status: code } = toApiError(error);
+      setError('root', {
+        message:
+          code === 429
+            ? 'Too many attempts. Wait a moment and try again.'
+            : 'Email or password is incorrect.',
+      });
     }
   };
 
   return (
-    <div className="mx-auto max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-      <p className="text-sm uppercase tracking-[0.4em] text-primary/60">Admin</p>
-      <h1 className="mt-2 text-3xl font-semibold text-dark">Dashboard Login</h1>
+    <>
+      <Helmet>
+        <title>Admin sign in | Nor Haji Osman</title>
+        <meta name="robots" content="noindex" />
+      </Helmet>
+      <div className="flex min-h-screen items-center justify-center bg-background px-6 py-12">
+        <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-lifted">
+          <p className="text-xs font-semibold uppercase tracking-[0.4em] text-primary/70">Admin</p>
+          <h1 className="mt-2 font-display text-3xl text-foreground">Dashboard sign in</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage research, events, content, and messages.
+          </p>
 
-      <form className="mt-6 space-y-4" onSubmit={handleSubmit(onSubmit)}>
+          <form className="mt-6 space-y-4" onSubmit={handleSubmit(onSubmit)} noValidate>
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="username"
+                icon={<Mail />}
+                placeholder="you@example.org"
+                error={errors.email?.message}
+                {...register('email')}
+              />
+            </div>
+            <div>
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                icon={<Lock />}
+                placeholder="Your password"
+                error={errors.password?.message}
+                {...register('password')}
+              />
+            </div>
 
-        {/* Email Input */}
-        <div>
-          <label className="text-sm font-semibold text-slate-600">Email</label>
-          <div className="relative">
-            <Mail className="absolute left-3 top-3 text-slate-400" size={18} />
-            <input
-              type="email"
-              placeholder="Enter your email"
-              className="mt-1 w-full rounded-xl border border-slate-200 px-10 py-2 outline-none focus:border-primary"
-              {...register('email', { required: 'Email is required' })}
-            />
-          </div>
-          {errors.email && <p className="text-sm text-red-500">{errors.email.message}</p>}
+            {errors.root && (
+              <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {errors.root.message}
+              </p>
+            )}
+
+            <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
+              {isSubmitting ? <Spinner /> : <LogIn className="h-4 w-4" />}
+              {isSubmitting ? 'Signing in…' : 'Sign in'}
+            </Button>
+          </form>
         </div>
-
-        {/* Password Input */}
-        <div className="relative">
-          <label className="text-sm font-semibold text-slate-600">Password</label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-3 text-slate-400" size={18} />
-
-            <input
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Enter your password"
-              className="mt-1 w-full rounded-xl border border-slate-200 px-10 py-2 outline-none focus:border-primary"
-              {...register('password', { required: 'Password is required' })}
-            />
-
-            <button
-              type="button"
-              onClick={() => setShowPassword((prev) => !prev)}
-              className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
-            >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          </div>
-
-          {errors.password && <p className="text-sm text-red-500">{errors.password.message}</p>}
-        </div>
-
-        {/* Submit Button */}
-        <button
-          type="submit"
-          className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60"
-          disabled={status === 'loading'}
-        >
-          <LogIn size={18} />
-          {status === 'loading' ? 'Signing in...' : 'Sign in'}
-        </button>
-      </form>
-    </div>
+      </div>
+    </>
   );
 };
 

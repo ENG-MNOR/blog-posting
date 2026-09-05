@@ -1,296 +1,220 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { ImagePlus, Save } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useContent, useMutateContent } from '@/hooks/useApi';
-import toast from "react-hot-toast";
-import { ImageIcon } from 'lucide-react';
+import { toApiError } from '@/api/client';
+import { resolveMediaUrl } from '@/lib/media';
+import { contentHomeSchema, contentAboutSchema } from '@/lib/schemas';
+import { PageHeader } from '@/components/ui/page-header';
+import { Button } from '@/components/ui/button';
+import { Input, Textarea, Label } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Spinner } from '@/components/ui/spinner';
+import { SkeletonText } from '@/components/ui/skeleton';
 
-type HomeContentValues = {
-  heroHeadline?: string;
-  heroSubtext?: string;
-  intro?: string;
-  stats?: {
-    yearsExperience?: number;
-    rolesHandled?: number;
-    researchCount?: number;
-  };
-};
+type HomeValues = z.infer<typeof contentHomeSchema>;
+type AboutValues = z.infer<typeof contentAboutSchema>;
 
-type AboutContentValues = {
-  intro?: string;
-  bio?: string;
-  roles?: string;
-  expertise?: string;
-};
+const HomeForm = () => {
+  const { data, isLoading } = useContent('home');
+  const mutate = useMutateContent('home');
+  const [photo, setPhoto] = useState<File | null>(null);
 
-const ContentManagerPage = () => {
-  const { data: home } = useContent('home');
-  const { data: about } = useContent('about');
-  const updateHome = useMutateContent('home');
-  const updateAbout = useMutateContent('about');
+  const preview = useMemo(() => (photo ? URL.createObjectURL(photo) : null), [photo]);
+  useEffect(() => () => {
+    if (preview) URL.revokeObjectURL(preview);
+  }, [preview]);
 
-  const [homeImage, setHomeImage] = useState<File | null>(null);
-  const [existingHomeImage, setExistingHomeImage] = useState<string | null>(null);
+  const form = useForm<HomeValues>({
+    resolver: zodResolver(contentHomeSchema),
+    values: {
+      heroHeadline: data?.heroHeadline ?? '',
+      heroSubtext: data?.heroSubtext ?? '',
+      intro: data?.intro ?? '',
+      yearsExperience: data?.stats?.yearsExperience,
+      rolesHandled: data?.stats?.rolesHandled,
+      researchCount: data?.stats?.researchCount,
+      countriesImpacted: data?.stats?.countriesImpacted,
+    },
+  });
 
-  const apiBaseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(
-    /\/api\/?$/,
-    ''
-  );
-  const getImageSrc = (path?: string) => {
-    if (!path) return '';
-    return path.startsWith('http') ? path : `${apiBaseUrl}${path}`;
-  };
-
-  const homeForm = useForm<HomeContentValues>();
-  const aboutForm = useForm<AboutContentValues>();
-
-  useEffect(() => {
-    if (home) {
-      homeForm.reset({
-        heroHeadline: home.heroHeadline,
-        heroSubtext: home.heroSubtext,
-        intro: home.intro,
-        stats: {
-          yearsExperience: home.stats?.yearsExperience,
-          rolesHandled: home.stats?.rolesHandled,
-          researchCount: home.stats?.researchCount
-        }
-      });
-      setExistingHomeImage(home.profilePhoto || null);
-    }
-  }, [home, homeForm]);
-
-  useEffect(() => {
-    if (about) {
-      aboutForm.reset({
-        intro: about.intro,
-        bio: about.bio,
-        roles: about.roles?.join(', '),
-        expertise: about.expertise?.join(', ')
-      });
-    }
-  }, [about, aboutForm]);
-
-  const submitHome = async (values: HomeContentValues) => {
+  const onSubmit = async (values: HomeValues) => {
+    const fd = new FormData();
+    fd.append('heroHeadline', values.heroHeadline ?? '');
+    fd.append('heroSubtext', values.heroSubtext ?? '');
+    fd.append('intro', values.intro ?? '');
+    fd.append(
+      'stats',
+      JSON.stringify({
+        yearsExperience: values.yearsExperience,
+        rolesHandled: values.rolesHandled,
+        researchCount: values.researchCount,
+        countriesImpacted: values.countriesImpacted,
+      }),
+    );
+    if (photo) fd.append('profilePhoto', photo);
     try {
-      const formData = new FormData();
-      formData.append('heroHeadline', values.heroHeadline || '');
-      formData.append('heroSubtext', values.heroSubtext || '');
-      formData.append('intro', values.intro || '');
-      
-      const stats = values.stats ? { ...values.stats } : undefined;
-      if (stats) {
-        Object.entries(stats).forEach(([key, value]) => {
-          if (value === undefined || Number.isNaN(value as number)) {
-            delete stats[key as keyof typeof stats];
-          }
-        });
-        formData.append('stats', JSON.stringify(stats));
-      }
-
-      if (homeImage) {
-        formData.append('profilePhoto', homeImage);
-      }
-
-      await updateHome.mutateAsync(formData);
-      toast.success("Home content has been Saved Successfully.");
-      setHomeImage(null);
+      await mutate.mutateAsync(fd);
+      toast.success('Home content saved');
+      setPhoto(null);
     } catch (error) {
-      toast.error("Failed to save home content!");
+      toast.error(toApiError(error).message);
     }
   };
 
-  const submitAbout = async (values: AboutContentValues) => {
-    try {
-      await updateAbout.mutateAsync({
-        ...values,
-        roles: values.roles?.split(',').map((item) => item.trim()),
-        expertise: values.expertise?.split(',').map((item) => item.trim())
-      });
-      toast.success("About content has been Saved Successfully.");
-    } catch (error) {
-      toast.error("Failed to save about content!");
-    }
-  };
+  if (isLoading) return <SkeletonText lines={8} className="rounded-2xl border border-border bg-card p-6" />;
+
+  const currentPhoto = preview || resolveMediaUrl(data?.profilePhoto);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      {/* Home Form */}
-      <form
-        onSubmit={homeForm.handleSubmit(submitHome)}
-        className="space-y-3 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
-      >
-        <div>
-          <h2 className="text-lg font-semibold text-dark">Home Page</h2>
-          <p className="text-sm text-slate-500">Hero copy, intro, and KPI stats.</p>
-        </div>
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-soft">
+      <div>
+        <Label htmlFor="heroHeadline">Hero headline</Label>
+        <Input id="heroHeadline" error={form.formState.errors.heroHeadline?.message} {...form.register('heroHeadline')} />
+      </div>
+      <div>
+        <Label htmlFor="heroSubtext">Hero subtext</Label>
+        <Textarea id="heroSubtext" rows={3} error={form.formState.errors.heroSubtext?.message} {...form.register('heroSubtext')} />
+      </div>
+      <div>
+        <Label htmlFor="intro">Intro</Label>
+        <Textarea id="intro" rows={3} error={form.formState.errors.intro?.message} {...form.register('intro')} />
+      </div>
 
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div>
-          <input
-            placeholder="Hero headline"
-            className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-primary"
-            {...homeForm.register('heroHeadline')}
-          />
+          <Label htmlFor="yearsExperience">Years</Label>
+          <Input id="yearsExperience" type="number" {...form.register('yearsExperience')} />
         </div>
-
         <div>
-          <textarea
-            placeholder="Hero subtext"
-            rows={3}
-            className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-primary"
-            {...homeForm.register('heroSubtext')}
-          />
+          <Label htmlFor="rolesHandled">Roles</Label>
+          <Input id="rolesHandled" type="number" {...form.register('rolesHandled')} />
         </div>
-
         <div>
-          <textarea
-            placeholder="Intro"
-            rows={3}
-            className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-primary"
-            {...homeForm.register('intro')}
-          />
+          <Label htmlFor="researchCount">Research</Label>
+          <Input id="researchCount" type="number" {...form.register('researchCount')} />
         </div>
-
-        <div className="grid gap-3 md:grid-cols-3">
-          <div>
-            <input
-              type="number"
-              placeholder="Years"
-              className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-primary"
-              {...homeForm.register('stats.yearsExperience')}
-            />
-          </div>
-          <div>
-            <input
-              type="number"
-              placeholder="Roles"
-              className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-primary"
-              {...homeForm.register('stats.rolesHandled')}
-            />
-          </div>
-          <div>
-            <input
-              type="number"
-              placeholder="Research"
-              className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-primary"
-              {...homeForm.register('stats.researchCount')}
-            />
-          </div>
-        </div>
-
-        {/* Homepage Image Upload */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            Homepage Hero Image
-          </label>
-          <label className="flex items-center gap-2 border rounded-xl px-3 py-2 border-slate-200 cursor-pointer hover:border-primary transition-colors">
-            <ImageIcon size={18} className="text-slate-500" />
-            <span className="text-sm text-slate-600 flex-1">
-              {homeImage ? homeImage.name : existingHomeImage ? 'Change image' : 'Select image'}
-            </span>
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => setHomeImage(e.target.files?.[0] || null)}
-            />
-          </label>
-          {(homeImage || existingHomeImage) && (
-            <div className="mt-3">
-              {homeImage ? (
-                <div className="flex items-center gap-3">
-                  <img
-                    src={URL.createObjectURL(homeImage)}
-                    alt="Preview"
-                    className="h-32 w-32 rounded-xl object-cover border border-slate-200 shadow-sm"
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-slate-700">{homeImage.name}</p>
-                    <p className="text-xs text-slate-500">
-                      {(homeImage.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
-                </div>
-              ) : existingHomeImage ? (
-                <div className="flex items-center gap-3">
-                  <img
-                    src={getImageSrc(existingHomeImage)}
-                    alt="Current"
-                    className="h-32 w-32 rounded-xl object-cover border border-slate-200 shadow-sm"
-                  />
-                  <p className="text-sm text-slate-600">Current image</p>
-                </div>
-              ) : null}
+          <Label htmlFor="countriesImpacted">Countries</Label>
+          <Input id="countriesImpacted" type="number" {...form.register('countriesImpacted')} />
+        </div>
+      </div>
+
+      <div>
+        <Label>Portrait photo</Label>
+        <div className="flex items-center gap-4">
+          {currentPhoto ? (
+            <img src={currentPhoto} alt="" className="h-20 w-20 rounded-xl border border-border object-cover" />
+          ) : (
+            <div className="flex h-20 w-20 items-center justify-center rounded-xl border border-dashed border-border text-muted-foreground">
+              <ImagePlus size={18} />
             </div>
           )}
+          <label className="cursor-pointer rounded-lg border border-input bg-surface px-3 py-2 text-sm text-muted-foreground hover:bg-muted">
+            {photo ? photo.name : 'Choose image'}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+            />
+          </label>
         </div>
+      </div>
 
-        <button
-          type="submit"
-          className="w-full rounded-full bg-primary py-2 text-sm font-semibold text-white"
-          disabled={homeForm.formState.isSubmitting}
-        >
-          Save Home Content
-        </button>
-      </form>
-
-      {/* About Form */}
-      <form
-        onSubmit={aboutForm.handleSubmit(submitAbout)}
-        className="space-y-3 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
-      >
-        <div>
-          <h2 className="text-lg font-semibold text-dark">About Page</h2>
-          <p className="text-sm text-slate-500">Bio, roles, expertise.</p>
-        </div>
-
-        <div>
-          <textarea
-            placeholder="Intro"
-            rows={3}
-            className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-primary"
-            {...aboutForm.register('intro')}
-          />
-        </div>
-
-        <div>
-          <textarea
-            placeholder="Full bio"
-            rows={6}
-            className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-primary"
-            {...aboutForm.register('bio')}
-          />
-        </div>
-
-        <div>
-          <textarea
-            placeholder="Roles (comma separated)"
-            rows={2}
-            className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-primary"
-            {...aboutForm.register('roles')}
-          />
-        </div>
-
-        <div>
-          <textarea
-            placeholder="Expertise (comma separated)"
-            rows={2}
-            className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-primary"
-            {...aboutForm.register('expertise')}
-          />
-        </div>
-
-        <button
-          type="submit"
-          className="w-full rounded-full bg-primary py-2 text-sm font-semibold text-white"
-          disabled={aboutForm.formState.isSubmitting}
-        >
-          Save About Content
-        </button>
-      </form>
-    </div>
+      <Button type="submit" disabled={form.formState.isSubmitting}>
+        {form.formState.isSubmitting ? <Spinner /> : <Save size={16} />}
+        Save home content
+      </Button>
+    </form>
   );
 };
 
+const AboutForm = () => {
+  const { data, isLoading } = useContent('about');
+  const mutate = useMutateContent('about');
+
+  const form = useForm<AboutValues>({
+    resolver: zodResolver(contentAboutSchema),
+    values: {
+      intro: data?.intro ?? '',
+      bio: data?.bio ?? '',
+      roles: data?.roles?.join(', ') ?? '',
+      expertise: data?.expertise?.join(', ') ?? '',
+    },
+  });
+
+  const onSubmit = async (values: AboutValues) => {
+    const toList = (v?: string) =>
+      (v ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    try {
+      await mutate.mutateAsync({
+        intro: values.intro,
+        bio: values.bio,
+        roles: toList(values.roles),
+        expertise: toList(values.expertise),
+      });
+      toast.success('About content saved');
+    } catch (error) {
+      toast.error(toApiError(error).message);
+    }
+  };
+
+  if (isLoading) return <SkeletonText lines={8} className="rounded-2xl border border-border bg-card p-6" />;
+
+  return (
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-soft">
+      <div>
+        <Label htmlFor="about-intro">Intro</Label>
+        <Textarea id="about-intro" rows={3} {...form.register('intro')} />
+      </div>
+      <div>
+        <Label htmlFor="bio">Full biography</Label>
+        <Textarea id="bio" rows={7} {...form.register('bio')} />
+      </div>
+      <div>
+        <Label htmlFor="roles">Key roles (comma separated)</Label>
+        <Textarea id="roles" rows={2} {...form.register('roles')} />
+      </div>
+      <div>
+        <Label htmlFor="expertise">Areas of expertise (comma separated)</Label>
+        <Textarea id="expertise" rows={2} {...form.register('expertise')} />
+      </div>
+      <Button type="submit" disabled={form.formState.isSubmitting}>
+        {form.formState.isSubmitting ? <Spinner /> : <Save size={16} />}
+        Save about content
+      </Button>
+    </form>
+  );
+};
+
+const ContentManagerPage = () => (
+  <div className="max-w-3xl space-y-8">
+    <Helmet>
+      <title>Content · Admin</title>
+    </Helmet>
+    <PageHeader eyebrow="Manage" title="Site content" description="Edit the public homepage and about page." />
+
+    <Tabs defaultValue="home">
+      <TabsList>
+        <TabsTrigger value="home">Home page</TabsTrigger>
+        <TabsTrigger value="about">About page</TabsTrigger>
+      </TabsList>
+      <TabsContent value="home">
+        <HomeForm />
+      </TabsContent>
+      <TabsContent value="about">
+        <AboutForm />
+      </TabsContent>
+    </Tabs>
+  </div>
+);
+
 export default ContentManagerPage;
-
-

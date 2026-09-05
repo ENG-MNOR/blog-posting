@@ -1,334 +1,297 @@
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { useDashboardResearch, useMutateResearch } from "@/hooks/useApi";
-import { Research } from "@/types";
-import { useAuthStore } from "@/store/auth";
-import toast from "react-hot-toast";
+import { useMemo, useState } from 'react';
+import { Helmet } from 'react-helmet-async';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import type { ColumnDef } from '@tanstack/react-table';
+import { Edit, Plus, Search, Trash2, X } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useDashboardResearch, useMutateResearch } from '@/hooks/useApi';
+import { toApiError } from '@/api/client';
+import { useAuthStore } from '@/store/auth';
+import type { Research } from '@/types';
+import { researchSchema, type ResearchFormValues } from '@/lib/schemas';
+import { PageHeader } from '@/components/ui/page-header';
+import { Button } from '@/components/ui/button';
+import { Input, Textarea, Select, Label } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { DataTable } from '@/components/ui/data-table';
+import { ConfirmDialog, useConfirm } from '@/components/ui/confirm-dialog';
+import { Spinner } from '@/components/ui/spinner';
 
-// Lucide Icons
-import {
-  Book,
-  Calendar,
-  Library,
-  Tag,
-  FileText,
-  Link as LinkIcon,
-  Edit,
-  Trash2,
-  Plus,
-  CheckCircle,
-  Clock,
-  File,
-  AlertCircle
-} from "lucide-react";
-
-type ResearchFormValues = {
-  title: string;
-  year: number;
-  journal: string;
-  topic: string;
-  summary: string;
-  pdfUrl: string;
-  externalLink: string;
-  status: 'draft' | 'pending_review' | 'published';
+const emptyValues: ResearchFormValues = {
+  title: '',
+  year: new Date().getFullYear(),
+  journal: '',
+  topic: '',
+  summary: '',
+  pdfUrl: '',
+  externalLink: '',
+  status: 'draft',
 };
 
-// Reusable input field with icon
-const InputField = ({
-  icon: Icon,
-  children,
-}: {
-  icon: any;
-  children: React.ReactNode;
-}) => (
-  <div className="relative">
-    <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-    {children}
-  </div>
-);
+const statusBadge = (status: string) =>
+  status === 'published' ? (
+    <Badge variant="success">Published</Badge>
+  ) : status === 'pending_review' ? (
+    <Badge variant="warning">Pending</Badge>
+  ) : (
+    <Badge variant="muted">Draft</Badge>
+  );
 
 const ResearchManagerPage = () => {
-  const { data, isLoading } = useDashboardResearch();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === 'admin';
+  const { data, isLoading, isError, refetch } = useDashboardResearch();
   const mutations = useMutateResearch();
-  const user = useAuthStore(state => state.user);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const confirm = useConfirm<Research>();
 
   const {
     register,
     handleSubmit,
     reset,
-    setValue,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<ResearchFormValues>({
-    defaultValues: {
-      status: 'draft'
-    }
+    resolver: zodResolver(researchSchema),
+    defaultValues: emptyValues,
   });
 
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return (data ?? []).filter((item) => {
+      const matchesQuery =
+        !q || [item.title, item.summary, item.journal, item.topic].some((f) => f?.toLowerCase().includes(q));
+      const matchesStatus = !statusFilter || item.status === statusFilter;
+      return matchesQuery && matchesStatus;
+    });
+  }, [data, query, statusFilter]);
+
+  const startEdit = (item: Research) => {
+    setEditingId(item._id);
+    reset({
+      title: item.title,
+      year: item.year,
+      journal: item.journal ?? '',
+      topic: item.topic ?? '',
+      summary: item.summary,
+      pdfUrl: item.pdfUrl ?? '',
+      externalLink: item.externalLink ?? '',
+      status: item.status,
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    reset(emptyValues);
+  };
+
   const onSubmit = async (values: ResearchFormValues) => {
-    const loadingToast = toast.loading("Processing...");
     try {
       if (editingId) {
         await mutations.update.mutateAsync({ id: editingId, data: values });
-        toast.success("Research updated successfully.");
+        toast.success('Research updated');
       } else {
         await mutations.create.mutateAsync(values);
-        toast.success("Research created successfully.");
+        toast.success('Research added');
       }
-      reset();
-      setEditingId(null);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Something went wrong.");
-    } finally {
-      toast.dismiss(loadingToast);
+      cancelEdit();
+    } catch (error) {
+      toast.error(toApiError(error).message);
     }
   };
 
-  const handleEdit = (item: Research) => {
-    setEditingId(item._id);
-    setValue("title", item.title || "");
-    setValue("year", item.year || new Date().getFullYear());
-    setValue("journal", item.journal || "");
-    setValue("topic", item.topic || "");
-    setValue("summary", item.summary || "");
-    setValue("pdfUrl", item.pdfUrl || "");
-    setValue("externalLink", item.externalLink || "");
-    setValue("status", item.status || "draft");
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this research item?")) return;
-
-    const loadingToast = toast.loading("Deleting...");
-    try {
-      await mutations.remove.mutateAsync(id);
-      toast.success("Research deleted successfully!");
-      if (editingId === id) {
-        reset();
-        setEditingId(null);
-      }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Failed to delete.");
-    } finally {
-      toast.dismiss(loadingToast);
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'published':
-        return <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800"><CheckCircle size={12} /> Published</span>;
-      case 'pending_review':
-        return <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800"><Clock size={12} /> Pending</span>;
-      default:
-        return <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-800"><File size={12} /> Draft</span>;
-    }
-  };
+  const columns = useMemo<ColumnDef<Research, unknown>[]>(
+    () => [
+      {
+        accessorKey: 'title',
+        header: 'Title',
+        cell: ({ row }) => (
+          <div className="max-w-sm">
+            <p className="line-clamp-1 font-medium text-foreground">{row.original.title}</p>
+            <p className="line-clamp-1 text-xs text-muted-foreground">{row.original.summary}</p>
+          </div>
+        ),
+      },
+      { accessorKey: 'year', header: 'Year', cell: ({ getValue }) => getValue<number>() },
+      {
+        accessorKey: 'topic',
+        header: 'Topic',
+        cell: ({ getValue }) => getValue<string>() || '—',
+      },
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        cell: ({ getValue }) => statusBadge(getValue<string>() || 'draft'),
+      },
+      {
+        id: 'actions',
+        header: '',
+        enableSorting: false,
+        cell: ({ row }) => (
+          <div className="flex justify-end gap-1">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEdit(row.original)} aria-label="Edit">
+              <Edit size={16} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:bg-destructive/10"
+              onClick={() => confirm.ask(row.original)}
+              aria-label="Delete"
+            >
+              <Trash2 size={16} />
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Research Management</h1>
-          <p className="text-slate-500">Add, edit, and publish research papers</p>
-        </div>
-      </div>
+      <Helmet>
+        <title>Research · Admin</title>
+      </Helmet>
+      <PageHeader
+        eyebrow="Manage"
+        title="Research"
+        description="Add, edit, and publish research papers."
+      />
 
-      <div className="grid gap-8 lg:grid-cols-3">
-        {/* Form */}
-        <div className="lg:col-span-1">
-          <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm sticky top-6">
-            <h2 className="mb-4 text-lg font-semibold text-slate-800">
-              {editingId ? "Edit Research" : "Add Research"}
+      <div className="grid gap-8 lg:grid-cols-[380px_1fr]">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="h-max rounded-2xl border border-border bg-card p-6 shadow-soft lg:sticky lg:top-6"
+        >
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-foreground">
+              {editingId ? 'Edit research' : 'Add research'}
             </h2>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Title</label>
-                <InputField icon={Book}>
-                  <input
-                    {...register("title", { required: "Title is required" })}
-                    className="w-full rounded-md border border-slate-300 py-2 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    placeholder="Research Title"
-                  />
-                </InputField>
-                {errors.title && <p className="mt-1 text-xs text-red-500">{errors.title.message}</p>}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Year</label>
-                  <InputField icon={Calendar}>
-                    <input
-                      type="number"
-                      {...register("year", { required: "Year is required" })}
-                      className="w-full rounded-md border border-slate-300 py-2 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                      placeholder="2024"
-                    />
-                  </InputField>
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Topic</label>
-                  <InputField icon={Tag}>
-                    <input
-                      {...register("topic")}
-                      className="w-full rounded-md border border-slate-300 py-2 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                      placeholder="Topic"
-                    />
-                  </InputField>
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Journal</label>
-                <InputField icon={Library}>
-                  <input
-                    {...register("journal")}
-                    className="w-full rounded-md border border-slate-300 py-2 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    placeholder="Journal Name"
-                  />
-                </InputField>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Summary</label>
-                <div className="relative">
-                  <FileText className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                  <textarea
-                    {...register("summary", { required: "Summary is required" })}
-                    rows={4}
-                    className="w-full rounded-md border border-slate-300 py-2 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    placeholder="Brief summary..."
-                  />
-                </div>
-                {errors.summary && <p className="mt-1 text-xs text-red-500">{errors.summary.message}</p>}
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">PDF URL</label>
-                <InputField icon={LinkIcon}>
-                  <input
-                    {...register("pdfUrl")}
-                    className="w-full rounded-md border border-slate-300 py-2 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    placeholder="https://..."
-                  />
-                </InputField>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">External Link</label>
-                <InputField icon={LinkIcon}>
-                  <input
-                    {...register("externalLink")}
-                    className="w-full rounded-md border border-slate-300 py-2 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    placeholder="https://..."
-                  />
-                </InputField>
-              </div>
-
-              {/* Status Field - Only editable by admin or if creating new */}
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Status</label>
-                <div className="relative">
-                   <AlertCircle className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                   <select
-                    {...register("status")}
-                    disabled={user?.role !== 'admin' && editingId !== null} 
-                    className="w-full rounded-md border border-slate-300 bg-white py-2 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:bg-slate-100 disabled:text-slate-500"
-                   >
-                     <option value="draft">Draft</option>
-                     <option value="pending_review">Pending Review</option>
-                     {user?.role === 'admin' && <option value="published">Published</option>}
-                   </select>
-                </div>
-                {user?.role !== 'admin' && (
-                    <p className="mt-1 text-xs text-slate-500">Only admins can publish research.</p>
-                )}
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
-                >
-                  {editingId ? <Edit size={16} /> : <Plus size={16} />}
-                  {editingId ? "Update Research" : "Add Research"}
-                </button>
-                {editingId && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      reset();
-                      setEditingId(null);
-                    }}
-                    className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    Cancel
-                  </button>
-                )}
-              </div>
-            </form>
+            {editingId && (
+              <button type="button" onClick={cancelEdit} className="text-muted-foreground hover:text-foreground">
+                <X size={16} />
+              </button>
+            )}
           </div>
-        </div>
 
-        {/* List */}
-        <div className="lg:col-span-2">
-          <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
-             <div className="border-b border-slate-200 px-6 py-4 flex justify-between items-center">
-                <h3 className="font-semibold text-slate-800">Research Items</h3>
-                <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-full">{data?.length || 0} items</span>
-             </div>
-             <div className="divide-y divide-slate-100">
-                {isLoading ? (
-                    <div className="p-8 text-center text-slate-500">Loading research...</div>
-                ) : data?.length === 0 ? (
-                    <div className="p-8 text-center text-slate-500">No research items found.</div>
-                ) : (
-                    data?.map((item) => (
-                        <div key={item._id} className="p-4 hover:bg-slate-50 transition-colors">
-                            <div className="flex items-start justify-between gap-4">
-                                <div className="space-y-1">
-                                    <div className="flex items-center gap-2">
-                                        <h4 className="font-medium text-slate-800 line-clamp-1">{item.title}</h4>
-                                        {getStatusBadge(item.status || 'draft')}
-                                    </div>
-                                    <p className="text-sm text-slate-600 line-clamp-2">{item.summary}</p>
-                                    <div className="flex items-center gap-3 text-xs text-slate-500 mt-2">
-                                        <span className="flex items-center gap-1"><Calendar size={12} /> {item.year}</span>
-                                        {item.journal && <span className="flex items-center gap-1"><Library size={12} /> {item.journal}</span>}
-                                        {item.topic && <span className="flex items-center gap-1"><Tag size={12} /> {item.topic}</span>}
-                                        {item.author && (
-                                            <span className="flex items-center gap-1 ml-2 pl-2 border-l border-slate-200">
-                                                By: {typeof item.author === 'object' ? item.author.name : 'Unknown'}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <button
-                                        onClick={() => handleEdit(item)}
-                                        className="rounded-md p-2 text-slate-400 hover:bg-primary/10 hover:text-primary transition-colors"
-                                        title="Edit"
-                                    >
-                                        <Edit size={18} />
-                                    </button>
-                                    <button
-                                        onClick={() => handleDelete(item._id)}
-                                        className="rounded-md p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-                                        title="Delete"
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    ))
-                )}
-             </div>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="title">Title</Label>
+              <Input id="title" error={errors.title?.message} {...register('title')} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="year">Year</Label>
+                <Input id="year" type="number" error={errors.year?.message} {...register('year')} />
+              </div>
+              <div>
+                <Label htmlFor="topic">Topic</Label>
+                <Input id="topic" error={errors.topic?.message} {...register('topic')} />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="journal">Journal</Label>
+              <Input id="journal" error={errors.journal?.message} {...register('journal')} />
+            </div>
+            <div>
+              <Label htmlFor="summary">Summary</Label>
+              <Textarea id="summary" rows={4} error={errors.summary?.message} {...register('summary')} />
+            </div>
+            <div>
+              <Label htmlFor="pdfUrl">PDF URL</Label>
+              <Input id="pdfUrl" placeholder="https://…" error={errors.pdfUrl?.message} {...register('pdfUrl')} />
+            </div>
+            <div>
+              <Label htmlFor="externalLink">External link</Label>
+              <Input id="externalLink" placeholder="https://…" error={errors.externalLink?.message} {...register('externalLink')} />
+            </div>
+            <div>
+              <Label htmlFor="status">Status</Label>
+              <Select id="status" error={errors.status?.message} {...register('status')}>
+                <option value="draft">Draft</option>
+                <option value="pending_review">Pending review</option>
+                {isAdmin && <option value="published">Published</option>}
+              </Select>
+              {!isAdmin && (
+                <p className="mt-1 text-xs text-muted-foreground">Only admins can publish.</p>
+              )}
+            </div>
           </div>
-        </div>
+
+          <div className="mt-5 flex gap-2">
+            <Button type="submit" className="flex-1" disabled={isSubmitting}>
+              {isSubmitting ? <Spinner /> : editingId ? <Edit size={16} /> : <Plus size={16} />}
+              {editingId ? 'Update' : 'Add research'}
+            </Button>
+            {editingId && (
+              <Button type="button" variant="outline" onClick={cancelEdit}>
+                Cancel
+              </Button>
+            )}
+          </div>
+        </form>
+
+        <DataTable
+          columns={columns}
+          data={rows}
+          isLoading={isLoading}
+          isError={isError}
+          onRetry={() => refetch()}
+          getRowId={(r) => r._id}
+          emptyTitle={query || statusFilter ? 'No matching research' : 'No research yet'}
+          emptyDescription={query || statusFilter ? 'Try clearing filters.' : 'Add your first entry with the form.'}
+          toolbar={
+            <div className="flex flex-wrap items-center gap-3">
+              <Input
+                icon={<Search />}
+                placeholder="Search research…"
+                className="sm:w-64"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              <Select
+                className="sm:w-44"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                aria-label="Filter by status"
+              >
+                <option value="">All statuses</option>
+                <option value="draft">Draft</option>
+                <option value="pending_review">Pending review</option>
+                <option value="published">Published</option>
+              </Select>
+              <span className="ml-auto text-xs text-muted-foreground">{rows.length} shown</span>
+            </div>
+          }
+        />
       </div>
+
+      <ConfirmDialog
+        open={confirm.open}
+        onOpenChange={(o) => !o && confirm.close()}
+        title="Delete this research entry?"
+        description={confirm.target ? `“${confirm.target.title}” will be permanently removed.` : ''}
+        confirmLabel="Delete"
+        destructive
+        loading={confirm.loading}
+        onConfirm={() =>
+          confirm.run(async (item) => {
+            try {
+              await mutations.remove.mutateAsync(item._id);
+              toast.success('Research deleted');
+              if (editingId === item._id) cancelEdit();
+            } catch (error) {
+              toast.error(toApiError(error).message);
+              throw error;
+            }
+          })
+        }
+      />
     </div>
   );
 };

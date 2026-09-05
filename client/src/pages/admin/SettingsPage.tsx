@@ -1,168 +1,139 @@
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Helmet } from 'react-helmet-async';
+import { Lock, Save, UserCog } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/auth';
 import { useProfileMutation } from '@/hooks/useApi';
-import toast from 'react-hot-toast';
-import { User, Lock, Save } from 'lucide-react';
+import { toApiError } from '@/api/client';
+import { profileSchema, passwordSchema } from '@/lib/schemas';
+import { PageHeader } from '@/components/ui/page-header';
+import { Button } from '@/components/ui/button';
+import { Input, Label } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
+
+type ProfileValues = z.infer<typeof profileSchema>;
+type PasswordValues = z.infer<typeof passwordSchema>;
 
 const SettingsPage = () => {
-  const user = useAuthStore((state) => state.user);
-  const mutations = useProfileMutation();
-  const { register: registerProfile, handleSubmit: handleProfileSubmit, formState: { errors: profileErrors, isSubmitting: isProfileSubmitting } } = useForm({
-    defaultValues: {
-      name: user?.name || '',
-      email: user?.email || ''
-    }
+  const user = useAuthStore((s) => s.user);
+  const { updateProfile, updatePassword } = useProfileMutation();
+
+  const profileForm = useForm<ProfileValues>({
+    resolver: zodResolver(profileSchema),
+    values: { name: user?.name ?? '', email: user?.email ?? '' },
   });
 
-  const { register: registerPassword, handleSubmit: handlePasswordSubmit, reset: resetPassword, formState: { errors: passwordErrors, isSubmitting: isPasswordSubmitting } } = useForm();
+  const passwordForm = useForm<PasswordValues>({
+    resolver: zodResolver(passwordSchema),
+    defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
+  });
 
-  const onProfileSubmit = async (data: any) => {
+  const onProfile = async (data: ProfileValues) => {
     try {
-      await mutations.updateProfile.mutateAsync(data);
-      toast.success('Profile updated successfully');
-      // Ideally update auth store here, but for now a reload or subsequent fetch will handle it
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to update profile');
+      await updateProfile.mutateAsync(data);
+      toast.success('Profile updated');
+    } catch (error) {
+      const { message, fieldErrors } = toApiError(error);
+      if (fieldErrors.email) profileForm.setError('email', { message: fieldErrors.email });
+      toast.error(message);
     }
   };
 
-  const onPasswordSubmit = async (data: any) => {
-    if (data.newPassword !== data.confirmPassword) {
-      toast.error('New passwords do not match');
-      return;
-    }
-
+  const onPassword = async (data: PasswordValues) => {
     try {
-      await mutations.updatePassword.mutateAsync({
+      await updatePassword.mutateAsync({
         currentPassword: data.currentPassword,
-        newPassword: data.newPassword
+        newPassword: data.newPassword,
       });
-      toast.success('Password updated successfully');
-      resetPassword();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to update password');
+      toast.success('Password updated');
+      passwordForm.reset();
+    } catch (error) {
+      const { message } = toApiError(error);
+      passwordForm.setError('currentPassword', { message });
+      toast.error(message);
     }
   };
 
   return (
-    <div className="space-y-8 max-w-4xl">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">Settings</h1>
-        <p className="text-slate-500">Manage your account preferences and security.</p>
-      </div>
+    <div className="max-w-4xl space-y-8">
+      <Helmet>
+        <title>Settings · Admin</title>
+      </Helmet>
+      <PageHeader eyebrow="Account" title="Settings" description="Manage your profile and password." />
 
-      <div className="grid gap-8 md:grid-cols-2">
-        {/* Profile Settings */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm h-fit">
-          <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-6">
-            <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
-              <User size={20} />
-            </div>
-            <h2 className="text-lg font-semibold text-slate-800">Profile Information</h2>
+      <div className="grid gap-6 md:grid-cols-2">
+        <section className="h-max rounded-2xl border border-border bg-card p-6 shadow-soft">
+          <div className="mb-5 flex items-center gap-3">
+            <span className="rounded-lg bg-primary/10 p-2 text-primary">
+              <UserCog size={18} />
+            </span>
+            <h2 className="text-base font-semibold text-foreground">Profile</h2>
           </div>
-
-          <form onSubmit={handleProfileSubmit(onProfileSubmit)} className="space-y-4">
+          <form onSubmit={profileForm.handleSubmit(onProfile)} className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Full Name</label>
-              <input
-                {...registerProfile('name', { required: 'Name is required' })}
-                type="text"
-                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              {profileErrors.name && (
-                <p className="mt-1 text-xs text-red-500">{String(profileErrors.name.message)}</p>
-              )}
+              <Label htmlFor="name">Full name</Label>
+              <Input id="name" error={profileForm.formState.errors.name?.message} {...profileForm.register('name')} />
             </div>
-
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Email Address</label>
-              <input
-                {...registerProfile('email', { 
-                  required: 'Email is required',
-                  pattern: {
-                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                    message: "Invalid email address"
-                  }
-                })}
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
                 type="email"
-                disabled
-                className="w-full rounded-lg border border-slate-300 bg-slate-100 px-4 py-2.5 text-sm text-slate-500 cursor-not-allowed focus:border-slate-300 focus:outline-none"
+                error={profileForm.formState.errors.email?.message}
+                {...profileForm.register('email')}
               />
-              <p className="mt-1 text-xs text-slate-400">Email cannot be changed</p>
-              {profileErrors.email && (
-                <p className="mt-1 text-xs text-red-500">{String(profileErrors.email.message)}</p>
-              )}
             </div>
-
-            <div className="pt-2">
-              <button
-                type="submit"
-                disabled={isProfileSubmitting}
-                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90 disabled:opacity-50"
-              >
-                <Save size={16} />
-                {isProfileSubmitting ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
+            <Button type="submit" disabled={profileForm.formState.isSubmitting}>
+              {profileForm.formState.isSubmitting ? <Spinner /> : <Save size={16} />}
+              Save changes
+            </Button>
           </form>
         </section>
 
-        {/* Security Settings */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm h-fit">
-          <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-6">
-            <div className="rounded-lg bg-purple-50 p-2 text-purple-600">
-              <Lock size={20} />
-            </div>
-            <h2 className="text-lg font-semibold text-slate-800">Security</h2>
+        <section className="h-max rounded-2xl border border-border bg-card p-6 shadow-soft">
+          <div className="mb-5 flex items-center gap-3">
+            <span className="rounded-lg bg-secondary/10 p-2 text-secondary">
+              <Lock size={18} />
+            </span>
+            <h2 className="text-base font-semibold text-foreground">Security</h2>
           </div>
-
-          <form onSubmit={handlePasswordSubmit(onPasswordSubmit)} className="space-y-4">
+          <form onSubmit={passwordForm.handleSubmit(onPassword)} className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Current Password</label>
-              <input
-                {...registerPassword('currentPassword', { required: 'Current password is required' })}
+              <Label htmlFor="currentPassword">Current password</Label>
+              <Input
+                id="currentPassword"
                 type="password"
-                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              {passwordErrors.currentPassword && (
-                <p className="mt-1 text-xs text-red-500">{String(passwordErrors.currentPassword.message)}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">New Password</label>
-              <input
-                {...registerPassword('newPassword', { 
-                  required: 'New password is required',
-                  minLength: { value: 6, message: 'Password must be at least 6 characters' }
-                })}
-                type="password"
-                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              {passwordErrors.newPassword && (
-                <p className="mt-1 text-xs text-red-500">{String(passwordErrors.newPassword.message)}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Confirm New Password</label>
-              <input
-                {...registerPassword('confirmPassword', { required: 'Please confirm your password' })}
-                type="password"
-                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                autoComplete="current-password"
+                error={passwordForm.formState.errors.currentPassword?.message}
+                {...passwordForm.register('currentPassword')}
               />
             </div>
-
-            <div className="pt-2">
-              <button
-                type="submit"
-                disabled={isPasswordSubmitting}
-                className="flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700 disabled:opacity-50"
-              >
-                <Save size={16} />
-                {isPasswordSubmitting ? 'Updating...' : 'Update Password'}
-              </button>
+            <div>
+              <Label htmlFor="newPassword">New password</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                autoComplete="new-password"
+                error={passwordForm.formState.errors.newPassword?.message}
+                {...passwordForm.register('newPassword')}
+              />
             </div>
+            <div>
+              <Label htmlFor="confirmPassword">Confirm new password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                error={passwordForm.formState.errors.confirmPassword?.message}
+                {...passwordForm.register('confirmPassword')}
+              />
+            </div>
+            <Button type="submit" variant="secondary" disabled={passwordForm.formState.isSubmitting}>
+              {passwordForm.formState.isSubmitting ? <Spinner /> : <Save size={16} />}
+              Update password
+            </Button>
           </form>
         </section>
       </div>

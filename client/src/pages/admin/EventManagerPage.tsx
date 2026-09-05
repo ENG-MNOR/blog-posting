@@ -1,471 +1,340 @@
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { useEvents, useMutateEvents } from "@/hooks/useApi";
-import { EventItem } from "@/types";
-import toast from "react-hot-toast";
-import {
-  Edit,
-  Trash2,
-  Plus,
-  Link as LinkIcon,
-  MapPin,
-  ImageIcon,
-  Calendar,
-  FileText,
-  User,
-  Briefcase,
-  X,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from 'react';
+import { Helmet } from 'react-helmet-async';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import type { ColumnDef } from '@tanstack/react-table';
+import { Edit, ImagePlus, Plus, Search, Trash2, X } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useEvents, useMutateEvents } from '@/hooks/useApi';
+import { toApiError } from '@/api/client';
+import { resolveMediaUrl } from '@/lib/media';
+import type { EventItem } from '@/types';
+import { eventSchema, type EventFormValues } from '@/lib/schemas';
+import { PageHeader } from '@/components/ui/page-header';
+import { Button } from '@/components/ui/button';
+import { Input, Textarea, Label } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { DataTable } from '@/components/ui/data-table';
+import { ConfirmDialog, useConfirm } from '@/components/ui/confirm-dialog';
+import { Spinner } from '@/components/ui/spinner';
 
-type EventFormValues = {
-  name: string;
-  role: string;
-  date: string;
-  location: string;
-  description: string;
-  materialsUrl: string;
-  link?: string;
+const emptyValues: EventFormValues = {
+  name: '',
+  role: '',
+  date: '',
+  location: '',
+  description: '',
+  link: '',
+  materialsUrl: '',
 };
 
+const isUpcoming = (event: EventItem) =>
+  event.category === 'upcoming' || new Date(event.date).getTime() >= Date.now();
+
 const EventManagerPage = () => {
-  const { data } = useEvents();
+  const { data, isLoading, isError, refetch } = useEvents();
   const mutations = useMutateEvents();
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [selectedImages, setSelectedImages] = useState<File[]>([]);
-  const [existingImages, setExistingImages] = useState<string[]>([]);
-  const [removedImages, setRemovedImages] = useState<string[]>([]);
-
-  const apiBaseUrl =
-    (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(
-      /\/api\/?$/,
-      ""
-    );
-
-  const getImageSrc = (path?: string) => {
-    if (!path) return "";
-    return path.startsWith("http") ? path : `${apiBaseUrl}${path}`;
-  };
+  const [newImages, setNewImages] = useState<File[]>([]);
+  const [keptImages, setKeptImages] = useState<string[]>([]);
+  const [query, setQuery] = useState('');
+  const confirm = useConfirm<EventItem>();
 
   const {
     register,
     handleSubmit,
     reset,
-    setValue,
     formState: { errors, isSubmitting },
-  } = useForm<EventFormValues>();
+  } = useForm<EventFormValues>({ resolver: zodResolver(eventSchema), defaultValues: emptyValues });
+
+  // Object URLs for previews — revoked on change/unmount to avoid leaks.
+  const previews = useMemo(() => newImages.map((file) => URL.createObjectURL(file)), [newImages]);
+  useEffect(() => () => previews.forEach((url) => URL.revokeObjectURL(url)), [previews]);
+
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return (data ?? []).filter(
+      (e) => !q || [e.name, e.role, e.location, e.description].some((f) => f?.toLowerCase().includes(q)),
+    );
+  }, [data, query]);
+
+  const resetForm = () => {
+    setEditingId(null);
+    setNewImages([]);
+    setKeptImages([]);
+    reset(emptyValues);
+  };
+
+  const startEdit = (event: EventItem) => {
+    setEditingId(event._id);
+    setNewImages([]);
+    setKeptImages(event.images?.length ? event.images : event.imageUrl ? [event.imageUrl] : []);
+    reset({
+      name: event.name,
+      role: event.role,
+      date: event.date?.slice(0, 10) ?? '',
+      location: event.location ?? '',
+      description: event.description ?? '',
+      link: event.link ?? '',
+      materialsUrl: event.materialsUrl ?? '',
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const onSubmit = async (values: EventFormValues) => {
+    const fd = new FormData();
+    fd.append('name', values.name);
+    fd.append('role', values.role);
+    fd.append('date', values.date);
+    fd.append('location', values.location ?? '');
+    fd.append('description', values.description ?? '');
+    fd.append('link', values.link ?? '');
+    fd.append('materialsUrl', values.materialsUrl ?? '');
+
+    if (editingId) {
+      keptImages.forEach((img) => fd.append('existingImages', img));
+      if (keptImages.length === 0 && newImages.length === 0) fd.append('clearImages', 'true');
+    }
+    newImages.forEach((file) => fd.append('images', file));
+
     try {
-      const formData = new FormData();
-      formData.append("name", values.name);
-      formData.append("role", values.role);
-      formData.append("date", values.date);
-      formData.append("location", values.location);
-      formData.append("description", values.description);
-      formData.append("materialsUrl", values.materialsUrl || "");
-      if (values.link) formData.append("link", values.link);
-
-      // If no new images are selected, send existing images to preserve/update them
-      if (existingImages.length > 0) {
-        existingImages.forEach(img => formData.append("existingImages", img));
-      } else {
-        // Explicitly signal to clear images if needed, or if we just want to ensure the backend knows we have no existing images
-        formData.append("clearImages", "true");
-      }
-
-      if (selectedImages?.length) {
-        Array.from(selectedImages)
-          .forEach((file) => formData.append("images", file));
-      }
-
       if (editingId) {
-        await mutations.update.mutateAsync({ id: editingId, data: formData });
-        toast.success("Event has been Updated Successfully.");
+        await mutations.update.mutateAsync({ id: editingId, data: fd });
+        toast.success('Event updated');
       } else {
-        await mutations.create.mutateAsync(formData);
-        toast.success("Event has been Created Successfully.");
+        await mutations.create.mutateAsync(fd);
+        toast.success('Event created');
       }
-      reset();
-      setEditingId(null);
-      setSelectedImages([]);
-      setExistingImages([]);
+      resetForm();
     } catch (error) {
-      toast.error("Something went wrong!");
+      toast.error(toApiError(error).message);
     }
   };
 
-  const handleEdit = (item: EventItem) => {
-    setEditingId(item._id);
-    setValue("name", item.name || "");
-    setValue("role", item.role || "");
-    setValue("date", item.date?.slice(0, 10) || "");
-    setValue("location", item.location || "");
-    setValue("description", item.description || "");
-    setValue("materialsUrl", item.materialsUrl || "");
-    setValue("link", item.link || "");
-    setExistingImages(item.images || (item.imageUrl ? [item.imageUrl] : []));
-    setSelectedImages([]);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this event?")) {
-      try {
-        await mutations.remove.mutateAsync(id);
-        toast.success("Event has been Deleted Successfully!");
-        if (editingId === id) {
-          reset();
-          setEditingId(null);
-          setSelectedImages([]);
-          setExistingImages([]);
-        }
-      } catch (error) {
-        toast.error("Failed to delete event.");
-      }
-    }
-  };
+  const columns = useMemo<ColumnDef<EventItem, unknown>[]>(
+    () => [
+      {
+        accessorKey: 'name',
+        header: 'Event',
+        cell: ({ row }) => (
+          <div>
+            <p className="line-clamp-1 font-medium text-foreground">{row.original.name}</p>
+            <p className="text-xs text-muted-foreground">{row.original.role}</p>
+          </div>
+        ),
+      },
+      {
+        accessorKey: 'date',
+        header: 'Date',
+        cell: ({ getValue }) => new Date(getValue<string>()).toLocaleDateString(),
+      },
+      {
+        accessorKey: 'location',
+        header: 'Location',
+        cell: ({ getValue }) => getValue<string>() || '—',
+      },
+      {
+        id: 'status',
+        header: 'Status',
+        enableSorting: false,
+        cell: ({ row }) =>
+          isUpcoming(row.original) ? (
+            <Badge variant="secondary">Upcoming</Badge>
+          ) : (
+            <Badge variant="muted">Past</Badge>
+          ),
+      },
+      {
+        id: 'actions',
+        header: '',
+        enableSorting: false,
+        cell: ({ row }) => (
+          <div className="flex justify-end gap-1">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEdit(row.original)} aria-label="Edit">
+              <Edit size={16} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:bg-destructive/10"
+              onClick={() => confirm.ask(row.original)}
+              aria-label="Delete"
+            >
+              <Trash2 size={16} />
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[2fr,1fr]">
-      {/* Left: Events List */}
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-dark">Events</h2>
+    <div className="space-y-8">
+      <Helmet>
+        <title>Events · Admin</title>
+      </Helmet>
+      <PageHeader eyebrow="Manage" title="Events" description="Schedule seminars, trainings, and missions." />
 
-          <button
-            className="flex items-center gap-1 text-sm text-primary"
-            onClick={() => {
-              reset();
-              setEditingId(null);
-              setSelectedImages([]);
-              setExistingImages([]);
-            }}
-          >
-            <Plus size={16} /> Add New
-          </button>
-        </div>
+      <div className="grid gap-8 lg:grid-cols-[400px_1fr]">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="h-max rounded-2xl border border-border bg-card p-6 shadow-soft lg:sticky lg:top-6"
+        >
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-foreground">
+              {editingId ? 'Edit event' : 'Add event'}
+            </h2>
+            {editingId && (
+              <button type="button" onClick={resetForm} className="text-muted-foreground hover:text-foreground">
+                <X size={16} />
+              </button>
+            )}
+          </div>
 
-        <div className="mt-4 space-y-3">
-          {data?.map((event) => (
-            <article
-              key={event._id}
-              className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
-            >
-              <div className="flex flex-col gap-4 sm:flex-row">
-                {/* Content */}
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary dark:bg-primary/20 dark:text-sky-400">
-                      {event.role}
-                    </span>
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${new Date(event.date) >= new Date() ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
-                      {new Date(event.date) >= new Date() ? 'Upcoming' : 'Past'}
-                    </span>
-                  </div>
-
-                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
-                    {event.name}
-                  </h3>
-
-                  <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-slate-500 dark:text-slate-400">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar size={15} className="text-slate-400" />
-                      {new Date(event.date).toLocaleDateString(undefined, {
-                        weekday: 'short',
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                      })}
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <MapPin size={15} className="text-slate-400" />
-                      {event.location}
-                    </div>
-                  </div>
-                  
-                  {event.description && (
-                    <p className="line-clamp-2 text-sm text-slate-600 dark:text-slate-400">
-                      {event.description}
-                    </p>
-                  )}
-
-                  {event.link && (
-                    <a 
-                      href={event.link} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline dark:text-sky-400"
-                    >
-                      <LinkIcon size={14} />
-                      External Link
-                    </a>
-                  )}
-
-                  {/* Images Preview Row */}
-                  {(() => {
-                    const imgs = event.images?.length
-                      ? event.images
-                      : event.imageUrl
-                      ? [event.imageUrl]
-                      : [];
-
-                    return imgs.length ? (
-                      <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
-                        {imgs.map((img) => (
-                          <img
-                            key={img}
-                            src={getImageSrc(img)}
-                            alt={event.name}
-                            className="h-16 w-16 flex-none rounded-lg object-cover border border-slate-100 shadow-sm dark:border-slate-800"
-                          />
-                        ))}
-                      </div>
-                    ) : null;
-                  })()}
-                </div>
-
-                {/* Actions */}
-                <div className="flex flex-row gap-2 sm:flex-col sm:border-l sm:border-slate-100 sm:pl-4 sm:dark:border-slate-800">
-                  <button
-                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-primary/10 hover:text-primary dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 sm:flex-none"
-                    onClick={() => handleEdit(event)}
-                  >
-                    <Edit size={16} />
-                    <span>Edit</span>
-                  </button>
-
-                  <button
-                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 sm:flex-none"
-                    onClick={() => handleDelete(event._id)}
-                  >
-                    <Trash2 size={16} />
-                    <span>Delete</span>
-                  </button>
-                </div>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="name">Name</Label>
+              <Input id="name" error={errors.name?.message} {...register('name')} />
+            </div>
+            <div>
+              <Label htmlFor="role">Your role</Label>
+              <Input id="role" placeholder="Keynote speaker, facilitator…" error={errors.role?.message} {...register('role')} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="date">Date</Label>
+                <Input id="date" type="date" error={errors.date?.message} {...register('date')} />
               </div>
-            </article>
-          ))}
-          {!data?.length && (
-            <p className="text-sm text-slate-500">No events recorded yet.</p>
-          )}
-        </div>
-      </section>
-
-      {/* Right: Form */}
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-dark flex items-center gap-2">
-          {editingId ? <Edit size={18} /> : <Plus size={18} />}
-          {editingId ? "Edit Event" : "Add Event"}
-        </h2>
-
-        <form className="mt-4 space-y-3" onSubmit={handleSubmit(onSubmit)}>
-          {/** Name */}
-          <div>
-            <div
-              className={`flex items-center gap-2 border rounded-xl px-3 py-2 ${
-                errors.name ? "border-red-500" : "border-slate-200"
-              }`}
-            >
-              <User size={18} className="text-slate-500" />
-              <input
-                placeholder="Name"
-                className="w-full outline-none text-sm"
-                {...register("name", { required: "Name is required" })}
-              />
+              <div>
+                <Label htmlFor="location">Location</Label>
+                <Input id="location" error={errors.location?.message} {...register('location')} />
+              </div>
             </div>
-            {errors.name && (
-              <p className="text-red-600 text-sm mt-1">{errors.name.message}</p>
-            )}
-          </div>
-
-          {/** Role */}
-          <div>
-            <div
-              className={`flex items-center gap-2 border rounded-xl px-3 py-2 ${
-                errors.role ? "border-red-500" : "border-slate-200"
-              }`}
-            >
-              <Briefcase size={18} className="text-slate-500" />
-              <input
-                placeholder="Role"
-                className="w-full outline-none text-sm"
-                {...register("role", { required: "Role is required" })}
-              />
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Textarea id="description" rows={3} error={errors.description?.message} {...register('description')} />
             </div>
-            {errors.role && (
-              <p className="text-red-600 text-sm mt-1">{errors.role.message}</p>
-            )}
-          </div>
-
-          {/** Date */}
-          <div>
-            <div
-              className={`flex items-center gap-2 border rounded-xl px-3 py-2 ${
-                errors.date ? "border-red-500" : "border-slate-200"
-              }`}
-            >
-              <Calendar size={18} className="text-slate-500" />
-              <input
-                type="date"
-                className="w-full outline-none text-sm"
-                {...register("date", { required: "Date is required" })}
-              />
+            <div>
+              <Label htmlFor="link">Event link</Label>
+              <Input id="link" placeholder="https://…" error={errors.link?.message} {...register('link')} />
             </div>
-            {errors.date && (
-              <p className="text-red-600 text-sm mt-1">{errors.date.message}</p>
-            )}
-          </div>
-
-          {/** Location */}
-          <div>
-            <div
-              className={`flex items-center gap-2 border rounded-xl px-3 py-2 ${
-                errors.location ? "border-red-500" : "border-slate-200"
-              }`}
-            >
-              <MapPin size={18} className="text-slate-500" />
-              <input
-                placeholder="Location"
-                className="w-full outline-none text-sm"
-                {...register("location", { required: "Location is required" })}
-              />
+            <div>
+              <Label htmlFor="materialsUrl">Materials link</Label>
+              <Input id="materialsUrl" placeholder="https://…" error={errors.materialsUrl?.message} {...register('materialsUrl')} />
             </div>
-            {errors.location && (
-              <p className="text-red-600 text-sm mt-1">{errors.location.message}</p>
-            )}
-          </div>
 
-          {/** Link */}
-          <div>
-            <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2">
-              <LinkIcon size={18} className="text-slate-500" />
-              <input
-                type="url"
-                placeholder="External Link (URL)"
-                className="w-full outline-none text-sm"
-                {...register("link")}
-              />
-            </div>
-          </div>
+            <div>
+              <Label>Images</Label>
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-input bg-surface px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted">
+                <ImagePlus size={16} />
+                Add images
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files) setNewImages((prev) => [...prev, ...Array.from(e.target.files!)]);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
 
-          {/** Description */}
-          <div>
-            <div
-              className={`flex items-start gap-2 border rounded-xl px-3 py-2 ${
-                errors.description ? "border-red-500" : "border-slate-200"
-              }`}
-            >
-              <FileText size={18} className="mt-1 text-slate-500" />
-              <textarea
-                placeholder="Description"
-                rows={3}
-                className="w-full outline-none text-sm"
-                {...register("description", { required: "Description is required" })}
-              />
-            </div>
-            {errors.description && (
-              <p className="text-red-600 text-sm mt-1">{errors.description.message}</p>
-            )}
-          </div>
-
-          {/** Images Upload */}
-          <div>
-            <label className="flex items-center gap-2 border rounded-xl px-3 py-2 border-slate-200 cursor-pointer hover:bg-slate-50 transition">
-              <ImageIcon size={18} className="text-slate-500" />
-              <span className="text-sm text-slate-500">Upload Images</span>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  if (e.target.files) {
-                    setSelectedImages((prev) => [
-                      ...prev,
-                      ...Array.from(e.target.files!),
-                    ]);
-                  }
-                }}
-              />
-            </label>
-            
-            {(selectedImages.length > 0 || existingImages.length > 0) && (
-              <div className="mt-3 grid grid-cols-4 gap-2">
-                {/* New Images Preview */}
-                {selectedImages.map((file, idx) => (
-                  <div key={idx} className="relative aspect-square group">
-                    <img
-                      src={URL.createObjectURL(file)}
-                      alt="Preview"
-                      className="h-full w-full rounded-lg object-cover border border-slate-200"
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSelectedImages((prev) =>
-                          prev.filter((_, i) => i !== idx)
-                        )
-                      }
-                      className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                ))}
-                
-                {/* Existing Images (always show, allow delete) */}
-                {existingImages.map((src, idx) => (
-                    <div key={src} className="relative aspect-square group">
-                      <img
-                        src={getImageSrc(src)}
-                        alt="Existing"
-                        className="h-full w-full rounded-lg object-cover border border-slate-200"
-                      />
-                       <button
+              {(keptImages.length > 0 || previews.length > 0) && (
+                <div className="mt-3 grid grid-cols-4 gap-2">
+                  {keptImages.map((src, idx) => (
+                    <figure key={src} className="group relative aspect-square">
+                      <img src={resolveMediaUrl(src)} alt="" className="h-full w-full rounded-lg border border-border object-cover" />
+                      <button
                         type="button"
-                        onClick={() =>
-                          setExistingImages((prev) =>
-                            prev.filter((_, i) => i !== idx)
-                          )
-                        }
-                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => setKeptImages((prev) => prev.filter((_, i) => i !== idx))}
+                        className="absolute -right-1.5 -top-1.5 rounded-full bg-destructive p-0.5 text-destructive-foreground shadow"
+                        aria-label="Remove image"
                       >
                         <X size={12} />
                       </button>
-                    </div>
+                    </figure>
                   ))}
-              </div>
-            )}
-            {selectedImages.length > 0 && existingImages.length > 0 && (
-               <p className="text-xs text-slate-500 mt-2">
-                 New images will be appended to existing ones.
-               </p>
-            )}
-          </div>
-
-          {/** Materials/Link URL */}
-          <div>
-            <div className="flex items-center gap-2 border rounded-xl px-3 py-2 border-slate-200">
-              <LinkIcon size={18} className="text-slate-500" />
-              <input
-                placeholder="Materials Link URL"
-                className="w-full outline-none text-sm"
-                {...register("materialsUrl")}
-              />
+                  {previews.map((src, idx) => (
+                    <figure key={src} className="group relative aspect-square">
+                      <img src={src} alt="" className="h-full w-full rounded-lg border border-border object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setNewImages((prev) => prev.filter((_, i) => i !== idx))}
+                        className="absolute -right-1.5 -top-1.5 rounded-full bg-destructive p-0.5 text-destructive-foreground shadow"
+                        aria-label="Remove image"
+                      >
+                        <X size={12} />
+                      </button>
+                    </figure>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-          <button
-            type="submit"
-            className="w-full rounded-full bg-primary py-2 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60"
-            disabled={isSubmitting}
-          >
-            {editingId ? "Update Event" : "Create Event"}
-          </button>
+
+          <div className="mt-5 flex gap-2">
+            <Button type="submit" className="flex-1" disabled={isSubmitting}>
+              {isSubmitting ? <Spinner /> : editingId ? <Edit size={16} /> : <Plus size={16} />}
+              {editingId ? 'Update' : 'Create event'}
+            </Button>
+            {editingId && (
+              <Button type="button" variant="outline" onClick={resetForm}>
+                Cancel
+              </Button>
+            )}
+          </div>
         </form>
-      </section>
+
+        <DataTable
+          columns={columns}
+          data={rows}
+          isLoading={isLoading}
+          isError={isError}
+          onRetry={() => refetch()}
+          getRowId={(r) => r._id}
+          emptyTitle={query ? 'No matching events' : 'No events yet'}
+          emptyDescription={query ? 'Try a different search.' : 'Add your first event with the form.'}
+          toolbar={
+            <div className="flex flex-wrap items-center gap-3">
+              <Input
+                icon={<Search />}
+                placeholder="Search events…"
+                className="sm:w-64"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              <span className="ml-auto text-xs text-muted-foreground">{rows.length} shown</span>
+            </div>
+          }
+        />
+      </div>
+
+      <ConfirmDialog
+        open={confirm.open}
+        onOpenChange={(o) => !o && confirm.close()}
+        title="Delete this event?"
+        description={confirm.target ? `“${confirm.target.name}” will be permanently removed.` : ''}
+        confirmLabel="Delete"
+        destructive
+        loading={confirm.loading}
+        onConfirm={() =>
+          confirm.run(async (event) => {
+            try {
+              await mutations.remove.mutateAsync(event._id);
+              toast.success('Event deleted');
+              if (editingId === event._id) resetForm();
+            } catch (error) {
+              toast.error(toApiError(error).message);
+              throw error;
+            }
+          })
+        }
+      />
     </div>
   );
 };
 
 export default EventManagerPage;
-
-
