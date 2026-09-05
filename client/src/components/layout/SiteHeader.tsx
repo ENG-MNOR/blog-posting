@@ -1,109 +1,113 @@
-import { useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
-import { Menu, X, Moon, Sun } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Menu, X } from 'lucide-react';
+import { ThemeToggle } from '@/components/common/ThemeToggle';
+import { cn } from '@/lib/utils';
 
 const navItems = [
   { label: 'Home', to: '/' },
   { label: 'About', to: '/about' },
   { label: 'Research', to: '/research' },
   { label: 'Events', to: '/events' },
-  { label: 'Contact', to: '/contact' }
+  { label: 'Contact', to: '/contact' },
 ];
 
+const linkClass = ({ isActive }: { isActive: boolean }) =>
+  cn(
+    'relative text-sm font-medium transition-colors hover:text-primary',
+    isActive ? 'text-primary' : 'text-muted-foreground',
+  );
+
 const SiteHeader = () => {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+  const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const { pathname } = useLocation();
+
+  useEffect(() => setOpen(false), [pathname]);
 
   useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   return (
-    <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-slate-100 dark:bg-slate-900/90 dark:border-slate-800 transition-colors duration-300">
+    <header
+      className={cn(
+        'sticky top-0 z-50 border-b transition-colors duration-300',
+        scrolled
+          ? 'border-border bg-surface/85 backdrop-blur-md'
+          : 'border-transparent bg-surface/60 backdrop-blur',
+      )}
+    >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.4em] text-slate-500 dark:text-slate-400">Nor Haji Osman</p>
-          <p className="font-display text-lg text-primary dark:text-sky-400">Public Health Leader</p>
-        </div>
+        <NavLink to="/" className="group flex flex-col leading-tight">
+          <span className="whitespace-nowrap text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+            Nor Haji Osman
+          </span>
+          <span className="whitespace-nowrap font-display text-base text-primary transition-colors group-hover:text-secondary sm:text-lg">
+            Public Health Leader
+          </span>
+        </NavLink>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-300 md:flex">
+        <nav className="hidden items-center gap-7 md:flex">
           {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `transition-colors hover:text-primary dark:hover:text-sky-400 ${isActive ? 'text-primary dark:text-sky-400' : ''}`
-              }
-            >
+            <NavLink key={item.to} to={item.to} end={item.to === '/'} className={linkClass}>
               {item.label}
             </NavLink>
           ))}
-          
-          {/* Theme Toggle */}
-          <button
-            onClick={toggleTheme}
-            className="ml-2 rounded-full p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors"
-            title="Toggle Theme"
-          >
-            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-          </button>
+          <ThemeToggle className="ml-1" />
         </nav>
 
-        {/* Mobile Menu Button */}
-        <div className="flex items-center gap-4 md:hidden">
+        <div className="flex items-center gap-1 md:hidden">
+          <ThemeToggle />
           <button
-            onClick={toggleTheme}
-            className="text-slate-600 dark:text-slate-300"
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-label={open ? 'Close menu' : 'Open menu'}
+            aria-expanded={open}
+            className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
-            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-          </button>
-          <button
-            className="text-slate-600 dark:text-slate-300"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            {open ? <X size={22} /> : <Menu size={22} />}
           </button>
         </div>
       </div>
 
-      {/* Mobile Navigation Dropdown */}
-      {isMobileMenuOpen && (
-        <div className="border-t border-slate-100 bg-white dark:bg-slate-900 dark:border-slate-800 md:hidden animate-in slide-in-from-top-2 duration-200">
-          <nav className="flex flex-col p-4 space-y-2">
-            {navItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                onClick={() => setIsMobileMenuOpen(false)}
-                className={({ isActive }) =>
-                  `block rounded-lg px-4 py-3 text-base font-medium transition-colors ${
-                    isActive 
-                      ? 'bg-primary/5 text-primary dark:bg-sky-900/20 dark:text-sky-400' 
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-primary dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-sky-400'
-                  }`
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
-        </div>
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="overflow-hidden border-t border-border bg-surface md:hidden"
+          >
+            <nav className="flex flex-col gap-1 p-4">
+              {navItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.to === '/'}
+                  className={({ isActive }) =>
+                    cn(
+                      'rounded-lg px-4 py-3 text-base font-medium transition-colors',
+                      isActive
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                    )
+                  }
+                >
+                  {item.label}
+                </NavLink>
+              ))}
+            </nav>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 };
 
 export default SiteHeader;
-
-
-
-
-

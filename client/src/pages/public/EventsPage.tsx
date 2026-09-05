@@ -1,155 +1,214 @@
+import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { CalendarDays, MapPin, ExternalLink, FileText } from 'lucide-react';
 import { useEvents } from '@/hooks/useApi';
-import { Calendar, MapPin, ExternalLink } from 'lucide-react';
+import type { EventItem } from '@/types';
+import { resolveMediaUrl } from '@/lib/media';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Reveal } from '@/components/ui/reveal';
+import { SkeletonCard } from '@/components/ui/skeleton';
+import { EmptyState, ErrorState } from '@/components/ui/states';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
-const EventsColumn = ({
-  title,
-  category
-}: {
-  title: string;
-  category: 'upcoming' | 'past';
-}) => {
-  const { data, isLoading } = useEvents(category);
+const eventImages = (event: EventItem) =>
+  (event.images?.length ? event.images : event.imageUrl ? [event.imageUrl] : []).map(resolveMediaUrl);
 
-  const apiBaseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(
-    /\/api\/?$/,
-    ''
-  );
-  const getImageSrc = (path?: string) => {
-    if (!path) return '';
-    return path.startsWith('http') ? path : `${apiBaseUrl}${path}`;
-  };
+const EventCard = ({ event }: { event: EventItem }) => {
+  const images = eventImages(event);
+  const [lightbox, setLightbox] = useState<string | null>(null);
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
-      <h2 className="text-xl font-semibold text-slate-900 dark:text-white">{title}</h2>
-      <div className="mt-4 space-y-4">
-        {isLoading && <p className="dark:text-slate-400">Loading {title.toLowerCase()}...</p>}
-        {!isLoading &&
-          data?.map((event) => (
-            // ... (commented code) ...
+    <article className="rounded-2xl border border-border bg-card p-5 shadow-soft transition-shadow hover:shadow-lifted">
+      <p className="text-xs uppercase tracking-wide text-secondary">{event.role}</p>
+      <h3 className="mt-1 text-lg font-semibold text-foreground">{event.name}</h3>
 
-            <article
-  key={event._id}
-  className="rounded-2xl border border-slate-100 p-5 bg-white shadow-sm hover:shadow-lg transition-all duration-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:shadow-slate-800"
->
-  {/* Text Content */}
-  <div>
-    <p className="text-xs uppercase tracking-wide text-secondary dark:text-teal-400">
-      {event.role}
-    </p>
-
-    <h3 className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
-      {event.name}
-    </h3>
-
-    <div className="mt-2 space-y-1">
-      <p className="text-sm text-slate-500 flex items-center gap-1 dark:text-slate-400">
-        <Calendar size={14} />
-        {new Date(event.date).toLocaleDateString()}
-      </p>
-
-      {event.location && (
-        <p className="text-sm text-slate-500 flex items-center gap-1 dark:text-slate-400">
-          <MapPin size={14} />
-          {event.location}
+      <div className="mt-3 space-y-1.5 text-sm text-muted-foreground">
+        <p className="flex items-center gap-1.5">
+          <CalendarDays className="h-4 w-4" />
+          {new Date(event.date).toLocaleDateString(undefined, {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+          })}
         </p>
-      )}
-    </div>
-
-    {event.description && (
-      <p className="mt-3 text-sm text-slate-600 line-clamp-3 dark:text-slate-300">
-        {event.description}
-      </p>
-    )}
-
-    <div className="mt-3 flex flex-wrap gap-3">
-      {event.link && (
-        <a
-          href={event.link}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline dark:text-sky-400"
-        >
-          <ExternalLink size={14} />
-          Event Link
-        </a>
-      )}
-      {event.materialsUrl && (
-        <a
-          href={event.materialsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline dark:text-sky-400"
-        >
-          <ExternalLink size={14} />
-          Materials
-        </a>
-      )}
-    </div>
-  </div>
-
-  {/* Images Below Content */}
-  {(() => {
-    const imgs = event.images?.length
-      ? event.images.slice(0, 3)
-      : event.imageUrl
-      ? [event.imageUrl]
-      : [];
-
-    return imgs.length ? (
-      <div className="mt-4 grid grid-cols-3 gap-3">
-        {imgs.map((img) => (
-          <img
-            key={img}
-            src={getImageSrc(img)}
-            alt={event.name}
-            className="h-24 w-full object-cover rounded-xl border border-slate-200 shadow-sm hover:scale-105 transition dark:border-slate-700"
-          />
-        ))}
-      </div>
-    ) : null;
-  })()}
-</article>
-
-          ))}
-        {!isLoading && !data?.length && (
-          <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
-            Nothing to show yet.
+        {event.location && (
+          <p className="flex items-center gap-1.5">
+            <MapPin className="h-4 w-4" />
+            {event.location}
           </p>
         )}
       </div>
-    </section>
+
+      {event.description && (
+        <p className="mt-3 line-clamp-3 text-sm text-muted-foreground">{event.description}</p>
+      )}
+
+      {(event.link || event.materialsUrl) && (
+        <div className="mt-3 flex flex-wrap gap-4 text-sm font-medium text-primary">
+          {event.link && (
+            <a
+              href={event.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 hover:underline"
+            >
+              <ExternalLink className="h-4 w-4" /> Event link
+            </a>
+          )}
+          {event.materialsUrl && (
+            <a
+              href={event.materialsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 hover:underline"
+            >
+              <FileText className="h-4 w-4" /> Materials
+            </a>
+          )}
+        </div>
+      )}
+
+      {images.length > 0 && (
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {images.slice(0, 3).map((img) => (
+            <button
+              key={img}
+              type="button"
+              onClick={() => setLightbox(img)}
+              className="overflow-hidden rounded-xl border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <img
+                src={img}
+                alt={event.name}
+                loading="lazy"
+                className="h-24 w-full object-cover transition-transform hover:scale-105"
+              />
+            </button>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={lightbox !== null} onOpenChange={(o) => !o && setLightbox(null)}>
+        <DialogContent className="max-w-3xl bg-transparent p-0 shadow-none" hideClose>
+          {lightbox && (
+            <img
+              src={lightbox}
+              alt={event.name}
+              className="max-h-[80vh] w-full rounded-2xl object-contain"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </article>
+  );
+};
+
+const EventList = ({
+  events,
+  isLoading,
+  isError,
+  onRetry,
+  emptyLabel,
+}: {
+  events: EventItem[];
+  isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
+  emptyLabel: string;
+}) => {
+  if (isLoading) {
+    return (
+      <div className="grid gap-4 md:grid-cols-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <SkeletonCard key={i} />
+        ))}
+      </div>
+    );
+  }
+  if (isError) return <ErrorState onRetry={onRetry} />;
+  if (events.length === 0) {
+    return (
+      <EmptyState
+        title={emptyLabel}
+        icon={<CalendarDays className="h-5 w-5" />}
+        description="This list updates as engagements are scheduled."
+      />
+    );
+  }
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      {events.map((event) => (
+        <EventCard key={event._id} event={event} />
+      ))}
+    </div>
   );
 };
 
 const EventsPage = () => {
+  const { data, isLoading, isError, refetch } = useEvents();
+
+  const { upcoming, past } = useMemo(() => {
+    const now = Date.now();
+    const all = data ?? [];
+    return {
+      upcoming: all
+        .filter((e) => e.category === 'upcoming' || new Date(e.date).getTime() >= now)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+      past: all
+        .filter((e) => e.category === 'past' || new Date(e.date).getTime() < now)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    };
+  }, [data]);
+
   return (
     <>
       <Helmet>
-        <title>Events & Engagements | Nor Haji</title>
+        <title>Events &amp; Engagements | Nor Haji Osman</title>
+        <meta
+          name="description"
+          content="Seminars, donor briefings, and training missions led by Nor Haji Osman across the region."
+        />
       </Helmet>
+
       <div className="space-y-8">
-        <div>
-          <p className="text-sm uppercase tracking-[0.4em] text-primary/80 dark:text-sky-400/80">Events</p>
-          <h1 className="font-display text-4xl text-slate-900 dark:text-white">Speaking, Trainings & Missions</h1>
-          <p className="mt-3 text-lg text-slate-600 dark:text-slate-300">
-            Follow the seminars, donor briefings, and training missions Nor is leading across
-            the region.
+        <Reveal>
+          <p className="text-xs font-semibold uppercase tracking-[0.5em] text-primary">Events</p>
+          <h1 className="mt-3 font-display text-4xl text-foreground md:text-5xl">
+            Speaking, Trainings &amp; Missions
+          </h1>
+          <p className="mt-3 max-w-2xl text-lg text-muted-foreground">
+            Follow the seminars, donor briefings, and training missions Nor is leading across the
+            region.
           </p>
-        </div>
-        <div className="grid gap-6 md:grid-cols-2">
-          <EventsColumn title="Upcoming Events" category="upcoming" />
-          <EventsColumn title="Recent Events" category="past" />
-        </div>
+        </Reveal>
+
+        <Tabs defaultValue="upcoming">
+          <TabsList>
+            <TabsTrigger value="upcoming">Upcoming ({upcoming.length})</TabsTrigger>
+            <TabsTrigger value="past">Past ({past.length})</TabsTrigger>
+          </TabsList>
+          <TabsContent value="upcoming">
+            <EventList
+              events={upcoming}
+              isLoading={isLoading}
+              isError={isError}
+              onRetry={refetch}
+              emptyLabel="No upcoming engagements"
+            />
+          </TabsContent>
+          <TabsContent value="past">
+            <EventList
+              events={past}
+              isLoading={isLoading}
+              isError={isError}
+              onRetry={refetch}
+              emptyLabel="No past engagements recorded"
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </>
   );
 };
 
 export default EventsPage;
-
-
-
-
-

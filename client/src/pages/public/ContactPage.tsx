@@ -1,171 +1,163 @@
-import { useForm } from "react-hook-form";
-import { Helmet } from "react-helmet-async";
-import { useContactMutation } from "@/hooks/useApi";
-import toast from "react-hot-toast";
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Helmet } from 'react-helmet-async';
+import { CheckCircle2, Mail, MapPin, Send } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useContactMutation } from '@/hooks/useApi';
+import { Button } from '@/components/ui/button';
+import { Input, Textarea, Select, Label } from '@/components/ui/input';
+import { Reveal } from '@/components/ui/reveal';
+import { Spinner } from '@/components/ui/spinner';
 
-type ContactFormValues = {
-  name: string;
-  email: string;
-  requestType: string;
-  message: string;
-};
+const requestTypes = ['speaking', 'training', 'research', 'consultation', 'other'] as const;
 
-const requestTypes = [
-  "speaking",
-  "training",
-  "research",
-  "consultation",
-  "other",
-];
+const schema = z.object({
+  name: z.string().min(2, 'Please enter your name').max(120),
+  email: z.string().email('Enter a valid email address').max(200),
+  requestType: z.enum(requestTypes),
+  message: z.string().min(10, 'Tell us a little more (10+ characters)').max(4000),
+  // Honeypot — real users never fill this.
+  company: z.string().max(0).optional(),
+});
+
+type ContactValues = z.infer<typeof schema>;
 
 const ContactPage = () => {
   const mutation = useContactMutation();
-
   const {
     register,
     handleSubmit,
     reset,
-    formState: { errors },
-  } = useForm<ContactFormValues>({
-    defaultValues: {
-      name: "",
-      email: "",
-      requestType: "speaking",
-      message: "",
-    },
+    formState: { errors, isSubmitting, isSubmitSuccessful },
+  } = useForm<ContactValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { name: '', email: '', requestType: 'speaking', message: '', company: '' },
   });
 
-  const onSubmit = async (values: ContactFormValues) => {
-    const loadingToast = toast.loading("Sending message...");
-
+  const onSubmit = async (values: ContactValues) => {
+    if (values.company) return; // honeypot tripped
     try {
-      await mutation.mutateAsync(values);
-      toast.success("Message has been Sent Successfully.");
-      reset();
-    } catch (err) {
-      toast.error("Failed to send message. Try again.");
-    } finally {
-      toast.dismiss(loadingToast);
+      await mutation.mutateAsync({
+        name: values.name,
+        email: values.email,
+        requestType: values.requestType,
+        message: values.message,
+      });
+      toast.success('Message sent — Nor will be in touch.');
+    } catch {
+      toast.error('Could not send your message. Please try again.');
     }
   };
+
+  const succeeded = isSubmitSuccessful && mutation.isSuccess;
 
   return (
     <>
       <Helmet>
-        <title>Contact | Nor Haji</title>
+        <title>Contact | Nor Haji Osman</title>
+        <meta name="description" content="Invite Nor Haji Osman for speaking, training, research, or advisory engagements." />
       </Helmet>
 
-      <div className="grid gap-10 md:grid-cols-2">
-        <section>
-          <p className="text-sm uppercase tracking-[0.4em] text-primary/80 dark:text-sky-400/80">
-            Contact
-          </p>
-          <h1 className="font-display text-4xl text-slate-900 dark:text-white">Invite Nor Haji</h1>
-
-          <p className="mt-4 text-lg text-slate-600 dark:text-slate-300">
-            Share details about your seminar, training, or advisory need.
-            Nor responds within 2–3 business days.
+      <div className="grid gap-12 md:grid-cols-2">
+        <Reveal>
+          <p className="text-xs font-semibold uppercase tracking-[0.5em] text-primary">Contact</p>
+          <h1 className="mt-3 font-display text-4xl text-foreground md:text-5xl">Invite Nor Haji</h1>
+          <p className="mt-4 text-lg text-muted-foreground">
+            Share details about your seminar, training, or advisory need. Nor typically responds
+            within 2–3 business days.
           </p>
 
-          <div className="mt-8 space-y-4 text-slate-600 dark:text-slate-300">
-            <p>
-              Email:{" "}
-              <a
-                className="text-primary dark:text-sky-400"
-                href="mailto:connect@norhaji.org"
-              >
-                connect@norhaji.org
+          <dl className="mt-8 space-y-4 text-sm">
+            <div className="flex items-center gap-3">
+              <span className="rounded-lg bg-muted p-2 text-primary">
+                <Mail className="h-4 w-4" />
+              </span>
+              <a href="mailto:norhaji@just.edu.so" className="text-primary hover:underline">
+                norhaji@just.edu.so
               </a>
-            </p>
-            <p>Location: Nairobi, supporting the Horn of Africa.</p>
-          </div>
-        </section>
-
-        {/* Form */}
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
-          <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
-            <div>
-              <label className="text-sm font-semibold text-slate-600 dark:text-slate-300">  
-                Name
-              </label>
-              <input
-                placeholder="Please enter your name"
-                className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-sky-500"
-                {...register("name", { required: "Name is required" })}
-              />
-              {errors.name && (
-                <p className="text-sm text-red-500">{errors.name.message}</p>
-              )}
             </div>
-
-            <div>
-              <label className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                Email
-              </label>
-              <input
-                type="email"
-                placeholder="Please enter your email"
-                className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-sky-500"
-                {...register("email", {
-                  required: "Email is required",
-                  pattern: {
-                    value: /\S+@\S+\.\S+/,
-                    message: "Invalid email",
-                  },
-                })}
-              />
-              {errors.email && (
-                <p className="text-sm text-red-500">{errors.email.message}</p>
-              )}
+            <div className="flex items-center gap-3">
+              <span className="rounded-lg bg-muted p-2 text-primary">
+                <MapPin className="h-4 w-4" />
+              </span>
+              <span className="text-muted-foreground">Nairobi · supporting the Horn of Africa</span>
             </div>
+          </dl>
+        </Reveal>
 
-            <div>
-              <label className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                Request Type
-              </label>
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-sky-500"
-                {...register("requestType")}
-              >
-                {requestTypes.map((option) => (
-                  <option key={option} value={option}>
-                    {option.charAt(0).toUpperCase() + option.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                Message
-              </label>
-              <textarea
-                placeholder="Please enter your message"
-                rows={5}
-                className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-sky-500"
-                {...register("message", { required: "Message is required" })}
-              />
-              {errors.message && (
-                <p className="text-sm text-red-500">
-                  {errors.message.message}
+        <Reveal delay={0.08}>
+          <section className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+            {succeeded ? (
+              <div className="flex flex-col items-center py-10 text-center">
+                <div className="rounded-full bg-success/15 p-3 text-success">
+                  <CheckCircle2 className="h-6 w-6" />
+                </div>
+                <h2 className="mt-4 text-lg font-semibold text-foreground">Message received</h2>
+                <p className="mt-1 max-w-xs text-sm text-muted-foreground">
+                  Thanks for reaching out. You’ll get a reply at the email you provided.
                 </p>
-              )}
-            </div>
+                <Button variant="outline" size="sm" className="mt-5" onClick={() => reset()}>
+                  Send another message
+                </Button>
+              </div>
+            ) : (
+              <form className="space-y-4" onSubmit={handleSubmit(onSubmit)} noValidate>
+                <div>
+                  <Label htmlFor="name">Name</Label>
+                  <Input id="name" placeholder="Your full name" error={errors.name?.message} {...register('name')} />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@example.org"
+                    error={errors.email?.message}
+                    {...register('email')}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="requestType">Request type</Label>
+                  <Select id="requestType" {...register('requestType')}>
+                    {requestTypes.map((t) => (
+                      <option key={t} value={t}>
+                        {t.charAt(0).toUpperCase() + t.slice(1)}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="message">Message</Label>
+                  <Textarea
+                    id="message"
+                    rows={5}
+                    placeholder="Share the context, dates, and audience…"
+                    error={errors.message?.message}
+                    {...register('message')}
+                  />
+                </div>
 
-            <button
-              type="submit"
-              disabled={mutation.isPending}
-              className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-white shadow hover:bg-primary/90 disabled:opacity-50 dark:bg-sky-600 dark:hover:bg-sky-500"
-            >
-              {mutation.isPending ? "Sending..." : "Send Message"}
-            </button>
-          </form>
-        </section>
+                <input
+                  type="text"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  aria-hidden
+                  className="hidden"
+                  {...register('company')}
+                />
+
+                <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
+                  {isSubmitting ? <Spinner /> : <Send className="h-4 w-4" />}
+                  {isSubmitting ? 'Sending…' : 'Send message'}
+                </Button>
+              </form>
+            )}
+          </section>
+        </Reveal>
       </div>
     </>
   );
 };
 
 export default ContactPage;
-
-

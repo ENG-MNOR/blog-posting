@@ -1,116 +1,165 @@
 import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { FileText, Search, ExternalLink } from 'lucide-react';
 import { useResearch } from '@/hooks/useApi';
+import { Badge } from '@/components/ui/badge';
+import { Input, Select } from '@/components/ui/input';
+import { Reveal } from '@/components/ui/reveal';
+import { SkeletonCard } from '@/components/ui/skeleton';
+import { EmptyState, ErrorState } from '@/components/ui/states';
 
 const ResearchPage = () => {
+  const { data, isLoading, isError, refetch } = useResearch();
+  const [query, setQuery] = useState('');
   const [topic, setTopic] = useState('');
   const [year, setYear] = useState('');
 
-  // Fetch all research data (no filters)
-  const { data: allResearch, isLoading } = useResearch();
-
-  // Extract unique topics and years from ALL data
-  const topics = useMemo(() => 
-    Array.from(new Set((allResearch ?? []).map((item) => item.topic).filter(Boolean))).sort(),
-    [allResearch]
+  const topics = useMemo(
+    () => Array.from(new Set((data ?? []).map((r) => r.topic).filter(Boolean))).sort() as string[],
+    [data],
   );
-  
-  const years = useMemo(() => 
-    Array.from(new Set((allResearch ?? []).map((item) => item.year))).sort((a, b) => b - a),
-    [allResearch]
+  const years = useMemo(
+    () => Array.from(new Set((data ?? []).map((r) => r.year))).sort((a, b) => b - a),
+    [data],
   );
 
-  // Filter data client-side based on selection
-  const filteredData = useMemo(() => {
-    if (!allResearch) return [];
-    return allResearch.filter(item => {
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return (data ?? []).filter((item) => {
+      const matchesQuery =
+        !q ||
+        [item.title, item.summary, item.journal, item.topic]
+          .filter(Boolean)
+          .some((field) => field!.toLowerCase().includes(q));
       const matchesTopic = !topic || item.topic === topic;
       const matchesYear = !year || item.year === Number(year);
-      return matchesTopic && matchesYear;
+      return matchesQuery && matchesTopic && matchesYear;
     });
-  }, [allResearch, topic, year]);
+  }, [data, query, topic, year]);
+
+  const hasFilters = Boolean(query || topic || year);
 
   return (
     <>
       <Helmet>
-        <title>Research & Publications | Nor Haji</title>
+        <title>Research &amp; Publications | Nor Haji Osman</title>
+        <meta
+          name="description"
+          content="Peer-reviewed research and publications on HMIS, IDSR, immunization, and health data use."
+        />
       </Helmet>
+
       <div className="space-y-8">
-        <div>
-          <p className="text-sm uppercase tracking-[0.4em] text-primary/80 dark:text-sky-400/80">Research</p>
-          <h1 className="font-display text-4xl text-slate-900 dark:text-white">Publications & Insights</h1>
-          <p className="mt-3 text-lg text-slate-600 dark:text-slate-300">
+        <Reveal>
+          <p className="text-xs font-semibold uppercase tracking-[0.5em] text-primary">Research</p>
+          <h1 className="mt-3 font-display text-4xl text-foreground md:text-5xl">
+            Publications &amp; Insights
+          </h1>
+          <p className="mt-3 max-w-2xl text-lg text-muted-foreground">
             Explore peer-reviewed work covering HMIS, IDSR, immunization, and data use.
           </p>
-        </div>
+        </Reveal>
 
-        <div className="flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
-          <div className="relative w-full sm:w-64">
-            <select
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-4 py-2.5 pr-10 text-sm outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-sky-500"
-            >
-              <option value="">All Topics</option>
-              {topics.map((item) => (
-                <option key={item} value={item || ''}>
-                  {item}
-                </option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-            </div>
-          </div>
-
-          <div className="relative w-full sm:w-48">
-            <select
-              value={year}
-              onChange={(e) => setYear(e.target.value)}
-              className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-4 py-2.5 pr-10 text-sm outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-sky-500"
-            >
-              <option value="">All Years</option>
-              {years.map((value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-            </div>
-          </div>
+        <div className="grid gap-3 rounded-2xl border border-border bg-card p-4 shadow-soft sm:grid-cols-[1fr_auto_auto]">
+          <Input
+            icon={<Search />}
+            placeholder="Search titles, journals, topics…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <Select
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            className="sm:w-52"
+            aria-label="Filter by topic"
+          >
+            <option value="">All topics</option>
+            {topics.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </Select>
+          <Select
+            value={year}
+            onChange={(e) => setYear(e.target.value)}
+            className="sm:w-36"
+            aria-label="Filter by year"
+          >
+            <option value="">All years</option>
+            {years.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </Select>
         </div>
 
         <div className="grid gap-4">
-          {isLoading && <p className="dark:text-slate-400">Loading research...</p>}
-          {!isLoading &&
-            filteredData.map((item) => (
-              <article key={item._id} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
-                <p className="text-xs uppercase tracking-wide text-secondary dark:text-teal-400">{item.topic}</p>
-                <h2 className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">{item.title}</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  {item.journal} · {item.year}
-                </p>
-                <p className="mt-3 text-slate-600 dark:text-slate-300">{item.summary}</p>
-                <div className="mt-4 flex flex-wrap gap-4 text-sm font-medium text-primary dark:text-sky-400">
-                  {item.pdfUrl && (
-                    <a href={item.pdfUrl} target="_blank" rel="noreferrer" className="hover:underline">
-                      Download PDF →
-                    </a>
-                  )}
-                  {item.externalLink && (
-                    <a href={item.externalLink} target="_blank" rel="noreferrer" className="hover:underline">
-                      View journal →
-                    </a>
-                  )}
-                </div>
-              </article>
-            ))}
-          {!isLoading && !filteredData.length && (
-            <p className="rounded-xl border border-dashed border-slate-300 bg-white/70 p-6 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
-              No research items available yet. Please check back soon.
-            </p>
+          {isLoading && Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
+
+          {isError && <ErrorState onRetry={() => refetch()} />}
+
+          {!isLoading && !isError && filtered.length > 0 && (
+            <>
+              <p className="text-xs text-muted-foreground">
+                {filtered.length} {filtered.length === 1 ? 'result' : 'results'}
+                {hasFilters ? ' · filtered' : ''}
+              </p>
+              {filtered.map((item, i) => (
+                <Reveal key={item._id} delay={Math.min(i * 0.04, 0.2)}>
+                  <article className="rounded-2xl border border-border bg-card p-6 shadow-soft transition-shadow hover:shadow-lifted">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {item.topic && (
+                        <Badge variant="secondary" className="uppercase tracking-wide">
+                          {item.topic}
+                        </Badge>
+                      )}
+                      <span className="text-xs text-muted-foreground">{item.year}</span>
+                    </div>
+                    <h2 className="mt-3 text-xl font-semibold text-foreground">{item.title}</h2>
+                    {item.journal && (
+                      <p className="text-sm text-muted-foreground">{item.journal}</p>
+                    )}
+                    <p className="mt-3 text-muted-foreground">{item.summary}</p>
+                    <div className="mt-4 flex flex-wrap gap-4 text-sm font-medium text-primary">
+                      {item.pdfUrl && (
+                        <a
+                          href={item.pdfUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 hover:underline"
+                        >
+                          <FileText className="h-4 w-4" /> Download PDF
+                        </a>
+                      )}
+                      {item.externalLink && (
+                        <a
+                          href={item.externalLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 hover:underline"
+                        >
+                          <ExternalLink className="h-4 w-4" /> View journal
+                        </a>
+                      )}
+                    </div>
+                  </article>
+                </Reveal>
+              ))}
+            </>
+          )}
+
+          {!isLoading && !isError && filtered.length === 0 && (
+            <EmptyState
+              title={hasFilters ? 'No matching research' : 'No publications yet'}
+              description={
+                hasFilters
+                  ? 'Try clearing filters or adjusting your search.'
+                  : 'Publications will appear here once added.'
+              }
+              icon={<FileText className="h-5 w-5" />}
+            />
           )}
         </div>
       </div>
@@ -119,8 +168,3 @@ const ResearchPage = () => {
 };
 
 export default ResearchPage;
-
-
-
-
-

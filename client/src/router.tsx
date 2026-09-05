@@ -1,66 +1,16 @@
-// import { createBrowserRouter, Navigate } from 'react-router-dom';
-// import AppLayout from '@/components/layout/AppLayout';
-// import AdminLayout from '@/components/layout/AdminLayout';
-// import ProtectedRoute from '@/components/common/ProtectedRoute';
-// import HomePage from '@/pages/public/HomePage';
-// import AboutPage from '@/pages/public/AboutPage';
-// import ResearchPage from '@/pages/public/ResearchPage';
-// import EventsPage from '@/pages/public/EventsPage';
-// import ContactPage from '@/pages/public/ContactPage';
-// import AdminLoginPage from '@/pages/admin/AdminLoginPage';
-// import DashboardPage from '@/pages/admin/DashboardPage';
-// import ResearchManagerPage from '@/pages/admin/ResearchManagerPage';
-// import EventManagerPage from '@/pages/admin/EventManagerPage';
-// import ContentManagerPage from '@/pages/admin/ContentManagerPage';
-// import MessageCenterPage from '@/pages/admin/MessageCenterPage';
-
-// const router = createBrowserRouter([
-//   {
-//     element: <AppLayout />,
-//     children: [
-//       { path: '/', element: <HomePage /> },
-//       { path: '/about', element: <AboutPage /> },
-//       { path: '/research', element: <ResearchPage /> },
-//       { path: '/events', element: <EventsPage /> },
-//       { path: '/contact', element: <ContactPage /> }
-//     ]
-//   },
-//   {
-//     path: '/admin',
-//     element: <AdminLayout />,
-//     children: [
-//       { index: true, element: <Navigate to="login" replace /> },
-//       { path: 'login', element: <AdminLoginPage /> },
-//       {
-//         element: <ProtectedRoute />,
-//         children: [
-//           { path: 'dashboard', element: <DashboardPage /> },
-//           { path: 'research', element: <ResearchManagerPage /> },
-//           { path: 'events', element: <EventManagerPage /> },
-//           { path: 'content', element: <ContentManagerPage /> },
-//           { path: 'messages', element: <MessageCenterPage /> }
-//         ]
-//       }
-//     ]
-//   },
-//   { path: '*', element: <Navigate to="/" replace /> }
-// ]);
-
-// export default router;
-
-
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import AppLayout from '@/components/layout/AppLayout';
 
-// import AdminLayout from '@/layout/AdminLayout';
+import AppLayout from '@/components/layout/AppLayout';
 import AdminLayout from '@/components/layout/AdminLayout';
 import ProtectedRoute from '@/components/common/ProtectedRoute';
+import RoleRoute from '@/components/common/RoleRoute';
 
 import HomePage from '@/pages/public/HomePage';
 import AboutPage from '@/pages/public/AboutPage';
 import ResearchPage from '@/pages/public/ResearchPage';
 import EventsPage from '@/pages/public/EventsPage';
 import ContactPage from '@/pages/public/ContactPage';
+import NotFoundPage from '@/pages/public/NotFoundPage';
 
 import AdminLoginPage from '@/pages/admin/AdminLoginPage';
 import DashboardPage from '@/pages/admin/DashboardPage';
@@ -80,34 +30,36 @@ const router = createBrowserRouter([
       { path: '/research', element: <ResearchPage /> },
       { path: '/events', element: <EventsPage /> },
       { path: '/contact', element: <ContactPage /> },
+      { path: '*', element: <NotFoundPage /> },
     ],
   },
 
-  // ✅ login route (NO sidebar)
+  // Admin login — standalone, no chrome
   { path: '/admin/login', element: <AdminLoginPage /> },
 
-  // ✅ protected admin routes (WITH sidebar)
+  // Authenticated admin area
   {
     path: '/admin',
-    element: <AdminLayout />,
+    element: <ProtectedRoute />,
     children: [
-      { index: true, element: <Navigate to="dashboard" replace /> },
       {
-        element: <ProtectedRoute />,
+        element: <AdminLayout />,
         children: [
+          { index: true, element: <Navigate to="dashboard" replace /> },
           { path: 'dashboard', element: <DashboardPage /> },
           { path: 'research', element: <ResearchManagerPage /> },
           { path: 'events', element: <EventManagerPage /> },
           { path: 'content', element: <ContentManagerPage /> },
           { path: 'messages', element: <MessageCenterPage /> },
-          { path: 'users', element: <UserManagerPage /> },
           { path: 'settings', element: <SettingsPage /> },
-        ]
-      }
-    ]
+          {
+            element: <RoleRoute role="admin" />,
+            children: [{ path: 'users', element: <UserManagerPage /> }],
+          },
+        ],
+      },
+    ],
   },
-
-  { path: '*', element: <Navigate to="/" replace /> },
 ]);
 
 export default router;

@@ -1,4 +1,6 @@
-import { motion, useReducedMotion, type HTMLMotionProps } from 'framer-motion';
+import { motion, useReducedMotion, type HTMLMotionProps, type Variants } from 'framer-motion';
+
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 interface RevealProps extends HTMLMotionProps<'div'> {
   delay?: number;
@@ -13,7 +15,7 @@ export const Reveal = ({ delay = 0, y = 16, children, ...props }: RevealProps) =
       initial={reduce ? { opacity: 0 } : { opacity: 0, y }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-60px' }}
-      transition={{ duration: 0.5, delay, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.5, delay, ease: EASE }}
       {...props}
     >
       {children}
@@ -34,7 +36,7 @@ export const RevealGroup = ({ children, className }: { children: React.ReactNode
   </motion.div>
 );
 
-export const revealItem = {
+export const revealItem: Variants = {
   hidden: { opacity: 0, y: 16 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: EASE } },
 };

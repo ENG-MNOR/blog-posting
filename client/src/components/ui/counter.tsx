@@ -10,16 +10,23 @@ interface AnimatedCounterProps {
 
 export const AnimatedCounter = ({ value, duration = 1200, className, suffix = '' }: AnimatedCounterProps) => {
   const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { once: true, margin: '-40px' });
+  const inView = useInView(ref, { once: true });
   const reduce = useReducedMotion();
   const [display, setDisplay] = useState(0);
 
   useEffect(() => {
-    if (!inView) return;
     if (reduce) {
       setDisplay(value);
       return;
     }
+    // Safety net: never leave the number stuck at 0 if the element
+    // is never scrolled into view (or IntersectionObserver is unavailable).
+    const fallback = window.setTimeout(() => setDisplay(value), duration + 400);
+    return () => window.clearTimeout(fallback);
+  }, [reduce, value, duration]);
+
+  useEffect(() => {
+    if (!inView || reduce) return;
     let raf = 0;
     const start = performance.now();
     const tick = (now: number) => {
