@@ -31,3 +31,6 @@ server/.env
 
 
 
+
+# TS build info
+*.tsbuildinfo
