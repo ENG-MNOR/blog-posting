@@ -64,9 +64,10 @@ const generalLimiter = rateLimit({ windowMs: 60 * 1000, max: 120, standardHeader
 // Tighter limiter for abuse-prone endpoints (login brute force, contact spam)
 const strictLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true,
   message: { success: false, message: 'Too many attempts. Please try again later.' },
 });
 
