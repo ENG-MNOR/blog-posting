@@ -1,4 +1,5 @@
 import path from 'node:path';
+import crypto from 'node:crypto';
 import multer from 'multer';
 import { env } from '../config/env.js';
 
@@ -7,21 +8,30 @@ const storage = multer.diskStorage({
     cb(null, env.uploadsDir);
   },
   filename: (_req, file, cb) => {
-    const timestamp = Date.now();
-    const ext = path.extname(file.originalname);
-    const base = path.basename(file.originalname, ext).replace(/\s+/g, '-').toLowerCase();
-    cb(null, `${base}-${timestamp}${ext}`);
+    const ext = path.extname(file.originalname).toLowerCase();
+    const base = path
+      .basename(file.originalname, path.extname(file.originalname))
+      .replace(/[^a-z0-9]+/gi, '-')
+      .replace(/^-+|-+$/g, '')
+      .toLowerCase()
+      .slice(0, 40) || 'file';
+    cb(null, `${base}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}${ext}`);
   }
 });
 
 const allowedMimes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+const allowedExt = new Set(['.pdf', '.jpg', '.jpeg', '.png', '.webp']);
 
 const fileFilter = (_req, file, cb) => {
-  if (allowedMimes.includes(file.mimetype) || file.mimetype.startsWith('image/')) {
-    cb(null, true);
-  } else {
-    cb(new Error('Unsupported file type'));
+  // Explicit allow-list only — no `startsWith('image/')`, which let SVG
+  // (image/svg+xml) through and enabled stored XSS from /uploads.
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (allowedMimes.includes(file.mimetype) && allowedExt.has(ext)) {
+    return cb(null, true);
   }
+  const err = new Error('Unsupported file type. Allowed: PDF, JPG, PNG, WEBP.');
+  err.status = 400;
+  return cb(err);
 };
 
 export const upload = multer({

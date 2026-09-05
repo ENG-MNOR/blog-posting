@@ -5,6 +5,7 @@ import { signAccessToken, signRefreshToken, setRefreshCookie } from '../utils/to
 import { env } from '../config/env.js';
 
 const sanitizeUser = (user) => ({
+  _id: user._id,
   id: user._id,
   name: user.name,
   email: user.email,
@@ -12,6 +13,24 @@ const sanitizeUser = (user) => ({
   titles: user.titles,
   avatarUrl: user.avatarUrl
 });
+
+const PASSWORD_MIN = 8;
+
+const parseTitles = (titles) => {
+  if (Array.isArray(titles)) return titles;
+  if (typeof titles === 'string') {
+    try {
+      const parsed = JSON.parse(titles);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      /* fall through to CSV parsing */
+    }
+    return titles.split(',').map((t) => t.trim()).filter(Boolean);
+  }
+  return undefined;
+};
+
+const countAdmins = () => User.countDocuments({ role: 'admin' });
 
 export const bootstrapAdmin = async (req, res) => {
   const existing = await User.countDocuments();
@@ -25,6 +44,9 @@ export const bootstrapAdmin = async (req, res) => {
   if (!name || !email || !password) {
     return res.status(400).json({ message: 'Name, email and password are required' });
   }
+  if (password.length < PASSWORD_MIN) {
+    return res.status(400).json({ message: `Password must be at least ${PASSWORD_MIN} characters` });
+  }
 
   const hashed = await bcrypt.hash(password, 12);
 
@@ -32,7 +54,8 @@ export const bootstrapAdmin = async (req, res) => {
     name,
     email: email.toLowerCase(),
     password: hashed,
-    titles
+    role: 'admin',
+    titles: parseTitles(titles)
   });
 
   return res.status(201).json({ message: 'Admin created', user: sanitizeUser(user) });
@@ -167,33 +190,27 @@ export const getUsers = async (req, res) => {
 
 export const createUser = async (req, res) => {
   const { name, email, password, role, titles } = req.body;
-  let parsedTitles = titles;
-  
-  if (typeof titles === 'string') {
-    try {
-      parsedTitles = JSON.parse(titles);
-    } catch (e) {
-       parsedTitles = titles.split(',').map(t => t.trim()).filter(Boolean);
-    }
-  }
 
   if (!name || !email || !password) {
     return res.status(400).json({ message: 'Name, email and password are required' });
   }
+  if (password.length < PASSWORD_MIN) {
+    return res.status(400).json({ message: `Password must be at least ${PASSWORD_MIN} characters` });
+  }
 
   const existing = await User.findOne({ email: email.toLowerCase() });
   if (existing) {
-    return res.status(400).json({ message: 'User already exists' });
+    return res.status(409).json({ message: 'A user with that email already exists' });
   }
 
   const hashed = await bcrypt.hash(password, 12);
-  
+
   const payload = {
     name,
     email: email.toLowerCase(),
     password: hashed,
-    role: role || 'user',
-    titles: parsedTitles
+    role: role === 'admin' ? 'admin' : 'editor',
+    titles: parseTitles(titles)
   };
 
   if (req.file) {
@@ -222,21 +239,22 @@ export const updateUser = async (req, res) => {
   }
 
   if (name) user.name = name;
-  if (role) user.role = role;
-  
-  if (titles) {
-    if (typeof titles === 'string') {
-        try {
-          user.titles = JSON.parse(titles);
-        } catch (e) {
-           user.titles = titles.split(',').map(t => t.trim()).filter(Boolean);
-        }
-    } else {
-        user.titles = titles;
+
+  if (role && role !== user.role) {
+    // Prevent demoting the final admin and locking everyone out.
+    if (user.role === 'admin' && role !== 'admin' && (await countAdmins()) <= 1) {
+      return res.status(400).json({ message: 'Cannot change the role of the last admin' });
     }
+    user.role = role === 'admin' ? 'admin' : 'editor';
   }
 
+  const parsedTitles = parseTitles(titles);
+  if (parsedTitles !== undefined) user.titles = parsedTitles;
+
   if (password) {
+    if (password.length < PASSWORD_MIN) {
+      return res.status(400).json({ message: `Password must be at least ${PASSWORD_MIN} characters` });
+    }
     user.password = await bcrypt.hash(password, 12);
   }
 
@@ -251,13 +269,19 @@ export const updateUser = async (req, res) => {
 
 export const deleteUser = async (req, res) => {
   if (req.params.id === req.user._id.toString()) {
-    return res.status(400).json({ message: 'Cannot delete yourself' });
+    return res.status(400).json({ message: 'You cannot delete your own account' });
   }
 
-  const user = await User.findByIdAndDelete(req.params.id);
+  const user = await User.findById(req.params.id);
   if (!user) {
     return res.status(404).json({ message: 'User not found' });
   }
+
+  if (user.role === 'admin' && (await countAdmins()) <= 1) {
+    return res.status(400).json({ message: 'Cannot remove the last admin' });
+  }
+
+  await user.deleteOne();
   res.status(204).send();
 };
 

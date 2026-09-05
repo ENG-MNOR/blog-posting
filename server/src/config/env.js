@@ -12,6 +12,26 @@ if (missing.length) {
   throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
 }
 
+const WEAK_SECRETS = new Set([
+  'change-me',
+  'change-me-too',
+  'youraccesssecretkey',
+  'yourrefreshsecretkey',
+  'secret',
+]);
+
+for (const key of ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET']) {
+  const value = process.env[key] || '';
+  if (WEAK_SECRETS.has(value.toLowerCase()) || value.length < 24) {
+    const warning = `[env] ${key} looks weak or is a known placeholder — set a long random value.`;
+    if ((process.env.NODE_ENV || 'development') === 'production') {
+      throw new Error(warning);
+    }
+    // eslint-disable-next-line no-console
+    console.warn(warning);
+  }
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 

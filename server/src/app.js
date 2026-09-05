@@ -7,10 +7,11 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
+import mongoSanitize from 'express-mongo-sanitize';
 
 import { env } from './config/env.js';
 import router from './routes/index.js';
-import { errorHandler } from './middleware/errorHandler.js';
+import { errorHandler, notFound } from './middleware/errorHandler.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -53,15 +54,26 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 app.use(express.json({ limit: '2mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(cookieParser());
-app.use(
-  rateLimit({
-    windowMs: 60 * 1000,
-    max: 120
-  })
-);
-app.use(morgan('dev'));
+app.use(mongoSanitize());
+app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
+
+// General limiter
+const generalLimiter = rateLimit({ windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false });
+// Tighter limiter for abuse-prone endpoints (login brute force, contact spam)
+const strictLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many attempts. Please try again later.' },
+});
+
+app.use('/api', generalLimiter);
+app.use('/api/auth/login', strictLimiter);
+app.use('/api/auth/bootstrap', strictLimiter);
+app.use('/api/messages', (req, res, next) => (req.method === 'POST' ? strictLimiter(req, res, next) : next()));
 
 // Serve uploads with CORS headers
 app.use('/uploads', (req, res, next) => {
@@ -75,6 +87,9 @@ app.use('/uploads', (req, res, next) => {
 }, express.static(path.resolve(env.uploadsDir)));
 
 app.use('/api', router);
+
+// Unknown /api/* routes return JSON 404 instead of falling through to the SPA
+app.use(notFound);
 
 // Serve static files from React app
 const clientBuildPath = path.join(__dirname, '../../client/dist');
