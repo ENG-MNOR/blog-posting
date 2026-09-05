@@ -220,7 +220,7 @@ const UserManagerPage = () => {
             <div>
               <Label htmlFor="role">Role</Label>
               <Select id="role" error={errors.role?.message} {...register('role')}>
-                <option value="editor">Editor</option>
+                <option value="editor">User</option>
                 <option value="admin">Admin</option>
               </Select>
             </div>

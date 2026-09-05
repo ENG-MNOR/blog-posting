@@ -83,9 +83,25 @@
     -webkit-text-size-adjust: 100%;
   }
 
+  /*
+   * Paint the page background/text with *direct* values that change with the
+   * `.dark` class. Chrome will not repaint a `transition`ed property whose value
+   * only changed through a `var()` dependency, so `@apply bg-background` on
+   * <body> (plus a transition) leaves the body stuck on the first theme.
+   */
+  html {
+    background-color: rgb(248 250 252);
+    color: rgb(15 23 42);
+  }
+  html.dark {
+    background-color: rgb(8 15 26);
+    color: rgb(226 232 240);
+  }
+
   body {
-    @apply bg-background font-sans text-foreground antialiased;
-    transition: background-color 0.3s ease, color 0.3s ease;
+    @apply font-sans antialiased;
+    background-color: inherit;
+    color: inherit;
   }
 
   /* Respect users who prefer less motion */
