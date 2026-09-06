@@ -59,8 +59,18 @@ const AdminLayout = () => {
 
   const SidebarBody = ({ onNavigate }: { onNavigate?: () => void }) => (
     <div className="flex h-full flex-col">
-      <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-sm font-bold text-primary">
+      <div className="mb-6 flex items-center gap-2.5">
+        <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-white shadow-soft ring-1 ring-border">
+          <img src="/logo.jpeg" alt="" className="h-full w-full scale-[1.35] object-contain" />
+        </span>
+        <div className="min-w-0 leading-tight">
+          <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">Admin</p>
+          <p className="truncate font-display text-sm text-foreground">Public Health Leader</p>
+        </div>
+      </div>
+
+      <div className="mb-6 flex items-center gap-3 rounded-xl border border-border bg-surface-muted/60 p-3">
+        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-sm font-bold text-primary">
           {user?.avatarUrl ? (
             <img
               src={resolveMediaUrl(user.avatarUrl)}

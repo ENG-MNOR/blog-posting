@@ -45,8 +45,8 @@ const SiteHeader = () => {
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
         <NavLink to="/" className="group flex items-center gap-2.5 leading-tight">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-primary to-secondary font-display text-sm font-bold text-primary-foreground shadow-soft">
-            NH
+          <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-white shadow-soft ring-1 ring-border">
+            <img src="/logo.jpeg" alt="Nor Haji Osman" className="h-full w-full scale-[1.35] object-contain" />
           </span>
           <span className="flex flex-col">
             <span className="whitespace-nowrap text-[10px] uppercase tracking-[0.3em] text-muted-foreground">

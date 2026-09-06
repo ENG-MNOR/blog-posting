@@ -65,9 +65,12 @@ const AdminLoginPage = () => {
         <title>Admin sign in | Nor Haji Osman</title>
         <meta name="robots" content="noindex" />
       </Helmet>
-      <div className="flex min-h-screen items-center justify-center bg-background px-6 py-12">
+      <div className="bg-mesh flex min-h-screen items-center justify-center px-6 py-12">
         <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-lifted">
-          <p className="text-xs font-semibold uppercase tracking-[0.4em] text-primary/70">Admin</p>
+          <span className="mb-5 grid h-12 w-12 place-items-center overflow-hidden rounded-2xl bg-white shadow-soft ring-1 ring-border">
+            <img src="/logo.jpeg" alt="Nor Haji Osman" className="h-full w-full scale-[1.35] object-contain" />
+          </span>
+          <p className="eyebrow">Admin</p>
           <h1 className="mt-2 font-display text-3xl text-foreground">Dashboard sign in</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Manage research, events, content, and messages.

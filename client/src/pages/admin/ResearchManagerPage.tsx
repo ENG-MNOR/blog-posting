@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Edit, ExternalLink, FileText, Plus, Search, X } from 'lucide-react';
+import { Edit, ExternalLink, EyeOff, FileText, Plus, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useDashboardResearch, useMutateResearch } from '@/hooks/useApi';
 import { toApiError } from '@/api/client';
@@ -62,6 +62,11 @@ const ResearchCard = ({
 
     <h3 className="mt-3 text-lg font-semibold text-foreground">{item.title}</h3>
     {item.journal && <p className="text-sm text-muted-foreground">{item.journal}</p>}
+    {item.status !== 'published' && (
+      <p className="mt-1.5 flex items-center gap-1.5 text-xs text-warning">
+        <EyeOff className="h-3.5 w-3.5" /> Not shown on the public site until published
+      </p>
+    )}
     <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{item.summary}</p>
 
     {(item.pdfUrl || item.externalLink) && (
@@ -214,7 +219,11 @@ const ResearchManagerPage = () => {
                 <option value="pending_review">Pending review</option>
                 {isAdmin && <option value="published">Published</option>}
               </Select>
-              {!isAdmin && <p className="mt-1 text-xs text-muted-foreground">Only admins can publish.</p>}
+              <p className="mt-1 text-xs text-muted-foreground">
+                {isAdmin
+                  ? 'Only “Published” entries appear on the public site.'
+                  : 'Only admins can publish. Drafts and pending items stay off the public site.'}
+              </p>
             </div>
           </div>
 
