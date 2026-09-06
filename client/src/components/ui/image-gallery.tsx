@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Star, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { resolveMediaUrl } from '@/lib/media';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent } from './dialog';
@@ -8,8 +8,6 @@ interface ImageGalleryProps {
   /** Raw stored paths ("/uploads/…") or absolute URLs. */
   images?: string[];
   alt?: string;
-  /** Show a "Cover" marker on the first image (admin only). */
-  markCover?: boolean;
   /** 'feature' = big first image + grid of the rest. 'grid' = uniform grid. */
   layout?: 'feature' | 'grid';
   className?: string;
@@ -20,13 +18,7 @@ interface ImageGalleryProps {
  * every image (arrows, keyboard, swipe-friendly). Broken images drop out
  * automatically.
  */
-export const ImageGallery = ({
-  images,
-  alt = '',
-  markCover,
-  layout = 'feature',
-  className,
-}: ImageGalleryProps) => {
+export const ImageGallery = ({ images, alt = '', layout = 'feature', className }: ImageGalleryProps) => {
   const resolved = useMemo(() => (images ?? []).map(resolveMediaUrl).filter(Boolean), [images]);
   const [broken, setBroken] = useState<Set<string>>(new Set());
   const visible = resolved.filter((src) => !broken.has(src));
@@ -68,11 +60,6 @@ export const ImageGallery = ({
         onError={() => markFail(src)}
         className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
       />
-      {markCover && i === 0 && (
-        <span className="absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded-md bg-primary/90 px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
-          <Star className="h-3 w-3" /> Cover
-        </span>
-      )}
     </button>
   );
 

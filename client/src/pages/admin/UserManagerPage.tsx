@@ -2,9 +2,8 @@ import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import type { ColumnDef } from '@tanstack/react-table';
 import { z } from 'zod';
-import { Edit, ImagePlus, Plus, Search, Trash2, X } from 'lucide-react';
+import { Edit, ImagePlus, Mail, Plus, Search, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useUsers, useMutateUsers } from '@/hooks/useApi';
 import { toApiError } from '@/api/client';
@@ -16,9 +15,73 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Input, Select, Label } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { DataTable } from '@/components/ui/data-table';
+import { SkeletonCard } from '@/components/ui/skeleton';
+import { EmptyState, ErrorState } from '@/components/ui/states';
 import { ConfirmDialog, useConfirm } from '@/components/ui/confirm-dialog';
 import { Spinner } from '@/components/ui/spinner';
+import { EntityCardActions } from '@/components/admin/EntityCardActions';
+
+const UserCard = ({
+  user,
+  disableDelete,
+  deleteReason,
+  onEdit,
+  onDelete,
+}: {
+  user: User;
+  disableDelete?: boolean;
+  deleteReason?: string;
+  onEdit: () => void;
+  onDelete: () => void;
+}) => (
+  <article className="flex flex-col rounded-2xl border border-border bg-card p-5 shadow-soft transition-shadow hover:shadow-lifted">
+    <div className="flex items-start gap-3">
+      {user.avatarUrl ? (
+        <img
+          src={resolveMediaUrl(user.avatarUrl)}
+          alt=""
+          className="h-12 w-12 shrink-0 rounded-full border border-border object-cover"
+        />
+      ) : (
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted text-base font-semibold text-muted-foreground">
+          {user.name.charAt(0).toUpperCase()}
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="truncate font-semibold text-foreground">{user.name}</p>
+          <Badge variant={user.role === 'admin' ? 'default' : 'muted'} className="shrink-0">
+            {user.role}
+          </Badge>
+        </div>
+        <a
+          href={`mailto:${user.email}`}
+          className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-primary hover:underline"
+        >
+          <Mail className="h-3.5 w-3.5 shrink-0" /> {user.email}
+        </a>
+      </div>
+    </div>
+
+    {user.titles && user.titles.length > 0 && (
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {user.titles.map((t) => (
+          <Badge key={t} variant="outline">
+            {t}
+          </Badge>
+        ))}
+      </div>
+    )}
+
+    <div className="mt-auto">
+      <EntityCardActions
+        onEdit={onEdit}
+        onDelete={disableDelete ? () => toast.error(deleteReason ?? 'Cannot delete') : onDelete}
+        deleteLabel="Remove"
+      />
+    </div>
+  </article>
+);
 
 const UserManagerPage = () => {
   const currentUser = useAuthStore((s) => s.user);
@@ -42,7 +105,7 @@ const UserManagerPage = () => {
     defaultValues: { name: '', email: '', password: '', role: 'user', titles: '' },
   });
 
-  const admins = useMemo(() => (data ?? []).filter((u) => u.role === 'admin'), [data]);
+  const adminCount = useMemo(() => (data ?? []).filter((u) => u.role === 'admin').length, [data]);
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -101,86 +164,19 @@ const UserManagerPage = () => {
     }
   };
 
-  const columns = useMemo<ColumnDef<User, unknown>[]>(
-    () => [
-      {
-        accessorKey: 'name',
-        header: 'Member',
-        cell: ({ row }) => (
-          <div className="flex items-center gap-3">
-            {row.original.avatarUrl ? (
-              <img
-                src={resolveMediaUrl(row.original.avatarUrl)}
-                alt=""
-                className="h-9 w-9 rounded-full border border-border object-cover"
-              />
-            ) : (
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
-                {row.original.name.charAt(0).toUpperCase()}
-              </div>
-            )}
-            <div>
-              <p className="font-medium text-foreground">{row.original.name}</p>
-              <p className="text-xs text-muted-foreground">{row.original.email}</p>
-            </div>
-          </div>
-        ),
-      },
-      {
-        accessorKey: 'role',
-        header: 'Role',
-        cell: ({ getValue }) => (
-          <Badge variant={getValue<string>() === 'admin' ? 'default' : 'muted'}>
-            {getValue<string>()}
-          </Badge>
-        ),
-      },
-      {
-        id: 'titles',
-        header: 'Titles',
-        enableSorting: false,
-        cell: ({ row }) => row.original.titles?.join(', ') || '—',
-      },
-      {
-        id: 'actions',
-        header: '',
-        enableSorting: false,
-        cell: ({ row }) => {
-          const isSelf = row.original._id === currentUser?._id;
-          const isLastAdmin = row.original.role === 'admin' && admins.length <= 1;
-          return (
-            <div className="flex justify-end gap-1">
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEdit(row.original)} aria-label="Edit">
-                <Edit size={16} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive hover:bg-destructive/10 disabled:opacity-40"
-                disabled={isSelf || isLastAdmin}
-                title={isSelf ? 'You cannot delete yourself' : isLastAdmin ? 'Cannot remove the last admin' : 'Delete'}
-                onClick={() => confirm.ask(row.original)}
-                aria-label="Delete"
-              >
-                <Trash2 size={16} />
-              </Button>
-            </div>
-          );
-        },
-      },
-    ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [currentUser?._id, admins.length],
-  );
-
   return (
     <div className="space-y-8">
       <Helmet>
         <title>Team · Admin</title>
       </Helmet>
-      <PageHeader eyebrow="Manage" title="Team members" description="Control who can access the dashboard." />
+      <PageHeader
+        eyebrow="Manage"
+        title="Team members"
+        description="Add, edit, and remove the people who can access the dashboard."
+      />
 
       <div className="grid gap-8 lg:grid-cols-[380px_1fr]">
+        {/* Form */}
         <form
           onSubmit={handleSubmit(onSubmit)}
           className="h-max rounded-2xl border border-border bg-card p-6 shadow-soft lg:sticky lg:top-6"
@@ -246,7 +242,7 @@ const UserManagerPage = () => {
           <div className="mt-5 flex gap-2">
             <Button type="submit" className="flex-1" disabled={isSubmitting}>
               {isSubmitting ? <Spinner /> : editingId ? <Edit size={16} /> : <Plus size={16} />}
-              {editingId ? 'Update' : 'Add member'}
+              {editingId ? 'Update member' : 'Add member'}
             </Button>
             {editingId && (
               <Button type="button" variant="outline" onClick={resetForm}>
@@ -256,27 +252,53 @@ const UserManagerPage = () => {
           </div>
         </form>
 
-        <DataTable
-          columns={columns}
-          data={rows}
-          isLoading={isLoading}
-          isError={isError}
-          onRetry={() => refetch()}
-          getRowId={(r) => r._id}
-          emptyTitle={query ? 'No matching members' : 'No team members'}
-          toolbar={
-            <div className="flex flex-wrap items-center gap-3">
-              <Input
-                icon={<Search />}
-                placeholder="Search members…"
-                className="sm:w-64"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-              <span className="ml-auto text-xs text-muted-foreground">{rows.length} shown</span>
+        {/* Card grid */}
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              icon={<Search />}
+              placeholder="Search members…"
+              className="sm:w-64"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <span className="ml-auto text-xs text-muted-foreground">{rows.length} shown</span>
+          </div>
+
+          {isLoading ? (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
             </div>
-          }
-        />
+          ) : isError ? (
+            <ErrorState onRetry={() => refetch()} />
+          ) : rows.length === 0 ? (
+            <EmptyState
+              title={query ? 'No matching members' : 'No team members'}
+              description={query ? 'Try a different search.' : 'Add the first member with the form.'}
+            />
+          ) : (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {rows.map((u) => {
+                const isSelf = u._id === currentUser?._id;
+                const isLastAdmin = u.role === 'admin' && adminCount <= 1;
+                return (
+                  <UserCard
+                    key={u._id}
+                    user={u}
+                    disableDelete={isSelf || isLastAdmin}
+                    deleteReason={
+                      isSelf ? 'You cannot remove your own account' : 'Cannot remove the last admin'
+                    }
+                    onEdit={() => startEdit(u)}
+                    onDelete={() => confirm.ask(u)}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       <ConfirmDialog

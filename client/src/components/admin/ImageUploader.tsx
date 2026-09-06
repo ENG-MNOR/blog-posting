@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, ImagePlus, Star, UploadCloud, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ImagePlus, UploadCloud, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { resolveMediaUrl } from '@/lib/media';
 import { cn } from '@/lib/utils';
@@ -169,11 +169,6 @@ export const ImageUploader = ({ items, onChange, max = 3, label = 'Images' }: Im
             >
               <Img src={srcFor(item)} alt="" wrapperClassName="h-full w-full" />
 
-              {index === 0 && (
-                <span className="absolute left-1 top-1 inline-flex items-center gap-1 rounded-md bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
-                  <Star className="h-3 w-3" /> Cover
-                </span>
-              )}
               {item.kind === 'new' && (
                 <span className="absolute bottom-1 left-1 rounded bg-success/90 px-1 py-0.5 text-[9px] font-medium text-success-foreground">
                   New
@@ -212,9 +207,9 @@ export const ImageUploader = ({ items, onChange, max = 3, label = 'Images' }: Im
           ))}
         </ul>
       )}
-      {items.length === 0 && (
+      {items.length > 1 && (
         <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-          <ImagePlus className="h-3.5 w-3.5" /> The first image becomes the cover.
+          <ImagePlus className="h-3.5 w-3.5" /> Drag or use the arrows to reorder.
         </p>
       )}
     </div>
