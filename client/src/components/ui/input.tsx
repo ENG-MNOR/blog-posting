@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const fieldBase =
@@ -10,29 +11,49 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, icon, error, ...props }, ref) => (
-    <div className="w-full">
-      <div className="relative">
-        {icon && (
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:h-4 [&_svg]:w-4">
-            {icon}
-          </span>
-        )}
-        <input
-          ref={ref}
-          className={cn(
-            fieldBase,
-            icon && 'pl-9',
-            error && 'border-destructive focus-visible:border-destructive focus-visible:ring-destructive/30',
-            className,
+  ({ className, icon, error, type = 'text', ...props }, ref) => {
+    const isPassword = type === 'password';
+    const [reveal, setReveal] = React.useState(false);
+    const resolvedType = isPassword && reveal ? 'text' : type;
+
+    return (
+      <div className="w-full">
+        <div className="relative">
+          {icon && (
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:h-4 [&_svg]:w-4">
+              {icon}
+            </span>
           )}
-          aria-invalid={error ? true : undefined}
-          {...props}
-        />
+          <input
+            ref={ref}
+            type={resolvedType}
+            className={cn(
+              fieldBase,
+              icon && 'pl-9',
+              isPassword && 'pr-10',
+              error && 'border-destructive focus-visible:border-destructive focus-visible:ring-destructive/30',
+              className,
+            )}
+            aria-invalid={error ? true : undefined}
+            {...props}
+          />
+          {isPassword && (
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={() => setReveal((v) => !v)}
+              aria-label={reveal ? 'Hide password' : 'Show password'}
+              aria-pressed={reveal}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {reveal ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          )}
+        </div>
+        {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
       </div>
-      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
-    </div>
-  ),
+    );
+  },
 );
 Input.displayName = 'Input';
 

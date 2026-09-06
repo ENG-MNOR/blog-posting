@@ -58,10 +58,11 @@ const HomePage = () => {
       </Helmet>
 
       {/* Hero */}
-      <section className="relative -mx-6 overflow-hidden px-6 pb-16 pt-4 md:pt-8">
+      <section className="relative -mx-6 overflow-hidden px-6 pb-16 pt-6 md:pt-10">
+        <div aria-hidden className="bg-mesh pointer-events-none absolute inset-0 -z-10" />
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_60%_at_15%_10%,rgb(var(--color-primary)/0.14),transparent_60%),radial-gradient(50%_50%_at_90%_20%,rgb(var(--color-secondary)/0.12),transparent_55%)]"
+          className="pointer-events-none absolute -right-24 top-10 -z-10 h-72 w-72 rounded-full border border-primary/10"
         />
         <div className="mx-auto grid max-w-6xl items-center gap-12 md:grid-cols-[1.1fr_0.9fr]">
           <div>
@@ -69,7 +70,7 @@ const HomePage = () => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="text-xs font-semibold uppercase tracking-[0.5em] text-primary"
+              className="eyebrow"
             >
               Public Health Expert
             </motion.p>
@@ -77,9 +78,16 @@ const HomePage = () => {
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.05 }}
-              className="mt-4 font-display text-4xl leading-[1.1] text-foreground md:text-6xl"
+              className="mt-4 font-display text-4xl leading-[1.08] tracking-tight text-foreground md:text-6xl"
             >
-              {home?.heroHeadline || 'Strengthening health systems with data-driven leadership.'}
+              {home?.heroHeadline ? (
+                home.heroHeadline
+              ) : (
+                <>
+                  Strengthening health systems with{' '}
+                  <span className="text-gradient">data-driven leadership.</span>
+                </>
+              )}
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 14 }}
@@ -141,17 +149,20 @@ const HomePage = () => {
       </section>
 
       {/* Stats */}
-      <RevealGroup className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <RevealGroup className="grid grid-cols-2 gap-px overflow-hidden rounded-3xl border border-border bg-border md:grid-cols-4">
         {stats.map((stat) => (
           <motion.div
             key={stat.label}
             variants={revealItem}
-            className="rounded-2xl border border-border bg-card p-6 shadow-soft"
+            className="group relative bg-card p-6 transition-colors hover:bg-surface-muted"
           >
-            <p className="font-display text-3xl text-primary md:text-4xl">
+            <p className="font-display text-4xl font-semibold text-foreground md:text-5xl">
               <AnimatedCounter value={Number(stat.value) || 0} />
+              <span className="text-gradient">+</span>
             </p>
-            <p className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">{stat.label}</p>
+            <p className="mt-1.5 text-xs uppercase tracking-[0.15em] text-muted-foreground">
+              {stat.label}
+            </p>
           </motion.div>
         ))}
       </RevealGroup>

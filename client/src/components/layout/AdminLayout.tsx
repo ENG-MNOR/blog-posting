@@ -85,15 +85,25 @@ const AdminLayout = () => {
             onClick={onNavigate}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                'group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
                 isActive
-                  ? 'bg-primary text-primary-foreground shadow-soft'
+                  ? 'bg-primary/10 text-primary'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground',
               )
             }
           >
-            <Icon size={18} />
-            {label}
+            {({ isActive }) => (
+              <>
+                <span
+                  className={cn(
+                    'absolute left-0 top-1/2 h-5 -translate-y-1/2 rounded-r-full bg-primary transition-all',
+                    isActive ? 'w-1' : 'w-0',
+                  )}
+                />
+                <Icon size={18} className={cn('transition-transform', 'group-hover:scale-110')} />
+                {label}
+              </>
+            )}
           </NavLink>
         ))}
 
@@ -179,7 +189,7 @@ const AdminLayout = () => {
           </button>
         </header>
 
-        <main className="flex-1 overflow-x-hidden p-5 md:p-8">
+        <main className="bg-dotgrid relative flex-1 overflow-x-hidden p-5 md:p-8">
           <div className="mx-auto max-w-6xl">
             <Outlet />
           </div>

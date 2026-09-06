@@ -16,7 +16,8 @@ const navItems = [
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   cn(
     'relative text-sm font-medium transition-colors hover:text-primary',
-    isActive ? 'text-primary' : 'text-muted-foreground',
+    'after:absolute after:-bottom-1.5 after:left-0 after:h-0.5 after:rounded-full after:bg-primary after:transition-all after:duration-300',
+    isActive ? 'text-primary after:w-full' : 'text-muted-foreground after:w-0 hover:after:w-full',
   );
 
 const SiteHeader = () => {
@@ -36,19 +37,24 @@ const SiteHeader = () => {
   return (
     <header
       className={cn(
-        'sticky top-0 z-50 border-b transition-colors duration-300',
+        'sticky top-0 z-50 border-b transition-all duration-300',
         scrolled
-          ? 'border-border bg-surface/85 backdrop-blur-md'
-          : 'border-transparent bg-surface/60 backdrop-blur',
+          ? 'border-border bg-surface/80 shadow-soft backdrop-blur-xl'
+          : 'border-transparent bg-surface/50 backdrop-blur-md',
       )}
     >
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <NavLink to="/" className="group flex flex-col leading-tight">
-          <span className="whitespace-nowrap text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-            Nor Haji Osman
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
+        <NavLink to="/" className="group flex items-center gap-2.5 leading-tight">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-primary to-secondary font-display text-sm font-bold text-primary-foreground shadow-soft">
+            NH
           </span>
-          <span className="whitespace-nowrap font-display text-base text-primary transition-colors group-hover:text-secondary sm:text-lg">
-            Public Health Leader
+          <span className="flex flex-col">
+            <span className="whitespace-nowrap text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+              Nor Haji Osman
+            </span>
+            <span className="whitespace-nowrap font-display text-base text-foreground sm:text-lg">
+              Public Health Leader
+            </span>
           </span>
         </NavLink>
 

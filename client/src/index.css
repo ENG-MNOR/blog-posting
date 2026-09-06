@@ -104,6 +104,29 @@
     color: inherit;
   }
 
+  ::selection {
+    background-color: rgb(var(--color-primary) / 0.18);
+  }
+
+  /* Refined scrollbar (WebKit) */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--color-muted-foreground) / 0.35) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--color-muted-foreground) / 0.3);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 9999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--color-muted-foreground) / 0.5);
+  }
+
   /* Respect users who prefer less motion */
   @media (prefers-reduced-motion: reduce) {
     *,
@@ -143,5 +166,50 @@
 
   .focus-ring {
     @apply outline-none ring-offset-2 ring-offset-background focus-visible:ring-2 focus-visible:ring-ring;
+  }
+
+  /* Brand gradient text — for hero accents and section marks. */
+  .text-gradient {
+    background-image: linear-gradient(
+      120deg,
+      rgb(var(--color-primary)),
+      rgb(var(--color-secondary)) 55%,
+      rgb(var(--color-accent))
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Layered mesh gradient for hero / feature backgrounds. */
+  .bg-mesh {
+    background-image:
+      radial-gradient(45% 45% at 12% 8%, rgb(var(--color-primary) / 0.16), transparent 60%),
+      radial-gradient(40% 40% at 88% 12%, rgb(var(--color-secondary) / 0.14), transparent 55%),
+      radial-gradient(50% 50% at 70% 95%, rgb(var(--color-accent) / 0.1), transparent 60%);
+  }
+
+  /* Faint dotted grid, e.g. behind admin content. */
+  .bg-dotgrid {
+    background-image: radial-gradient(rgb(var(--color-muted-foreground) / 0.14) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  /* Standard interactive card: lift + brand ring on hover. */
+  .card-interactive {
+    @apply rounded-2xl border border-border bg-card shadow-soft transition-all duration-300;
+  }
+  .card-interactive:hover {
+    @apply -translate-y-0.5 shadow-lifted;
+    border-color: rgb(var(--color-primary) / 0.35);
+  }
+
+  /* Section eyebrow with a leading accent rule. */
+  .eyebrow {
+    @apply inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.35em] text-primary;
+  }
+  .eyebrow::before {
+    content: '';
+    @apply h-px w-6 bg-primary/50;
   }
 }

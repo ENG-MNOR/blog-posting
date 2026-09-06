@@ -13,12 +13,12 @@ interface StatCardProps {
   tone?: 'primary' | 'secondary' | 'success' | 'warning' | 'destructive';
 }
 
-const tones: Record<NonNullable<StatCardProps['tone']>, string> = {
-  primary: 'bg-primary/10 text-primary',
-  secondary: 'bg-secondary/10 text-secondary',
-  success: 'bg-success/15 text-success',
-  warning: 'bg-warning/15 text-warning',
-  destructive: 'bg-destructive/15 text-destructive',
+const tones: Record<NonNullable<StatCardProps['tone']>, { chip: string; glow: string }> = {
+  primary: { chip: 'bg-primary/10 text-primary', glow: 'from-primary/10' },
+  secondary: { chip: 'bg-secondary/10 text-secondary', glow: 'from-secondary/10' },
+  success: { chip: 'bg-success/15 text-success', glow: 'from-success/10' },
+  warning: { chip: 'bg-warning/15 text-warning', glow: 'from-warning/10' },
+  destructive: { chip: 'bg-destructive/15 text-destructive', glow: 'from-destructive/10' },
 };
 
 export const StatCard = ({
@@ -30,17 +30,25 @@ export const StatCard = ({
   loading,
   tone = 'primary',
 }: StatCardProps) => {
+  const t = tones[tone];
   const body = (
-    <div className="flex items-center gap-4 rounded-2xl border border-border bg-card p-5 shadow-soft transition-transform hover:-translate-y-0.5">
-      <div className={cn('rounded-xl p-3', tones[tone])}>
+    <div className="card-interactive relative flex items-center gap-4 overflow-hidden p-5">
+      <div
+        aria-hidden
+        className={cn(
+          'pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-gradient-to-br to-transparent blur-2xl',
+          t.glow,
+        )}
+      />
+      <div className={cn('shrink-0 rounded-xl p-3', t.chip)}>
         <Icon size={22} />
       </div>
       <div className="min-w-0">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
         {loading ? (
-          <Skeleton className="mt-1.5 h-7 w-12" />
+          <Skeleton className="mt-1.5 h-8 w-12" />
         ) : (
-          <p className="mt-0.5 text-2xl font-bold text-foreground">{value}</p>
+          <p className="mt-0.5 font-display text-3xl font-semibold text-foreground">{value}</p>
         )}
         {hint && !loading && <p className="text-xs text-muted-foreground">{hint}</p>}
       </div>
