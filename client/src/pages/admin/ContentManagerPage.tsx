@@ -52,8 +52,8 @@ const HomeForm = () => {
       JSON.stringify({
         yearsExperience: values.yearsExperience,
         rolesHandled: values.rolesHandled,
-        researchCount: values.researchCount,
         countriesImpacted: values.countriesImpacted,
+        // researchCount is derived live from published research — not edited here.
       }),
     );
     if (photo) fd.append('profilePhoto', photo);
@@ -85,23 +85,31 @@ const HomeForm = () => {
         <Textarea id="intro" rows={3} error={form.formState.errors.intro?.message} {...form.register('intro')} />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div>
-          <Label htmlFor="yearsExperience">Years</Label>
-          <Input id="yearsExperience" type="number" {...form.register('yearsExperience')} />
+      <div>
+        <Label>Homepage stats</Label>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <Label htmlFor="yearsExperience" className="text-xs font-normal text-muted-foreground">
+              Years
+            </Label>
+            <Input id="yearsExperience" type="number" {...form.register('yearsExperience')} />
+          </div>
+          <div>
+            <Label htmlFor="rolesHandled" className="text-xs font-normal text-muted-foreground">
+              Roles
+            </Label>
+            <Input id="rolesHandled" type="number" {...form.register('rolesHandled')} />
+          </div>
+          <div>
+            <Label htmlFor="countriesImpacted" className="text-xs font-normal text-muted-foreground">
+              Countries
+            </Label>
+            <Input id="countriesImpacted" type="number" {...form.register('countriesImpacted')} />
+          </div>
         </div>
-        <div>
-          <Label htmlFor="rolesHandled">Roles</Label>
-          <Input id="rolesHandled" type="number" {...form.register('rolesHandled')} />
-        </div>
-        <div>
-          <Label htmlFor="researchCount">Research</Label>
-          <Input id="researchCount" type="number" {...form.register('researchCount')} />
-        </div>
-        <div>
-          <Label htmlFor="countriesImpacted">Countries</Label>
-          <Input id="countriesImpacted" type="number" {...form.register('countriesImpacted')} />
-        </div>
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          “Research Projects” updates automatically from your published research.
+        </p>
       </div>
 
       <div>

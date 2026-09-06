@@ -4,7 +4,8 @@ const statsSchema = new mongoose.Schema(
   {
     yearsExperience: Number,
     rolesHandled: Number,
-    researchCount: Number
+    researchCount: Number, // legacy — now derived from published research
+    countriesImpacted: Number
   },
   { _id: false }
 );

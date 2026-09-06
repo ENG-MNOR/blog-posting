@@ -26,14 +26,18 @@ const HomePage = () => {
           { label: 'Invite for Speaking', href: '/contact' },
         ];
 
+  // "Research Projects" is always the live published count — the editable
+  // content stat only acts as a fallback while that request is in flight.
+  const liveResearchCount = research.data?.length;
   const stats = [
-    { label: 'Years Experience', value: home?.stats?.yearsExperience ?? 15 },
-    { label: 'Leadership Roles', value: home?.stats?.rolesHandled ?? 6 },
+    { label: 'Years Experience', value: home?.stats?.yearsExperience || 15, plus: true },
+    { label: 'Leadership Roles', value: home?.stats?.rolesHandled || 6, plus: true },
     {
       label: 'Research Projects',
-      value: home?.stats?.researchCount ?? research.data?.length ?? 40,
+      value: liveResearchCount ?? home?.stats?.researchCount ?? 0,
+      plus: false,
     },
-    { label: 'Countries Impacted', value: home?.stats?.countriesImpacted ?? 7 },
+    { label: 'Countries Impacted', value: home?.stats?.countriesImpacted || 7, plus: true },
   ];
 
   const photo = resolveMediaUrl(home?.profilePhoto);
@@ -158,7 +162,7 @@ const HomePage = () => {
           >
             <p className="font-display text-4xl font-semibold text-foreground md:text-5xl">
               <AnimatedCounter value={Number(stat.value) || 0} />
-              <span className="text-gradient">+</span>
+              {stat.plus && Number(stat.value) > 0 && <span className="text-gradient">+</span>}
             </p>
             <p className="mt-1.5 text-xs uppercase tracking-[0.15em] text-muted-foreground">
               {stat.label}

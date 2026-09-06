@@ -23,6 +23,10 @@ const clean = (params?: Record<string, unknown>) =>
 export const useContent = (slug: 'home' | 'about') =>
   useQuery({
     queryKey: queryKeys.content(slug),
+    // Content is edited in the admin; always revalidate so public pages
+    // pick up saved changes on the next visit.
+    staleTime: 0,
+    refetchOnMount: 'always',
     queryFn: async (): Promise<ContentBlock | null> => {
       try {
         const { data } = await apiClient.get<ContentBlock>(`/content/${slug}`);
