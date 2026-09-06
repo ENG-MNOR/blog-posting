@@ -52,7 +52,7 @@ const EventCard = ({
   return (
     <article className="flex flex-col rounded-2xl border border-border bg-card p-5 shadow-soft transition-shadow hover:shadow-lifted">
       {images.length > 0 && (
-        <ImageGallery images={images} alt={event.name} markCover className="mb-4" />
+        <ImageGallery images={images} alt={event.name} markCover layout="grid" className="mb-4" />
       )}
 
       <div className="flex items-start justify-between gap-3">

@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { AnimatedCounter } from '@/components/ui/counter';
 import { Reveal, RevealGroup, revealItem } from '@/components/ui/reveal';
 import { SkeletonCard } from '@/components/ui/skeleton';
+import { ImageGallery } from '@/components/ui/image-gallery';
 import { EmptyState, ErrorState } from '@/components/ui/states';
 import { motion } from 'framer-motion';
 
@@ -247,9 +248,17 @@ const HomePage = () => {
             !events.isError &&
             upcoming.map((event, i) => (
               <Reveal key={event._id} delay={i * 0.05}>
-                <article className="h-full rounded-2xl border border-border bg-card p-5 shadow-soft">
-                  <p className="text-xs uppercase tracking-wide text-secondary">{event.role}</p>
-                  <h3 className="mt-1 font-semibold text-foreground">{event.name}</h3>
+                <article className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-soft transition-shadow hover:shadow-lifted">
+                  {(event.images?.length || event.imageUrl) && (
+                    <ImageGallery
+                      images={event.images?.length ? event.images : [event.imageUrl!]}
+                      alt={event.name}
+                      layout="grid"
+                      className="mb-4"
+                    />
+                  )}
+                  <p className="line-clamp-2 text-xs uppercase tracking-wide text-secondary">{event.role}</p>
+                  <h3 className="mt-1 line-clamp-2 font-semibold text-foreground">{event.name}</h3>
                   <div className="mt-3 space-y-1.5 text-sm text-muted-foreground">
                     <p className="flex items-center gap-1.5">
                       <CalendarDays className="h-4 w-4" />

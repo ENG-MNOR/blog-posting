@@ -1,33 +1,58 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { CalendarDays, MapPin, ExternalLink, FileText } from 'lucide-react';
 import { useEvents } from '@/hooks/useApi';
 import type { EventItem } from '@/types';
-import { resolveMediaUrl } from '@/lib/media';
+import { cn } from '@/lib/utils';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { Reveal } from '@/components/ui/reveal';
 import { SkeletonCard } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/ui/states';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { ImageGallery } from '@/components/ui/image-gallery';
 
 const eventImages = (event: EventItem) =>
-  (event.images?.length ? event.images : event.imageUrl ? [event.imageUrl] : []).map(resolveMediaUrl);
+  event.images?.length ? event.images : event.imageUrl ? [event.imageUrl] : [];
 
-const EventCard = ({ event }: { event: EventItem }) => {
-  const allImages = eventImages(event);
-  const [broken, setBroken] = useState<Set<string>>(new Set());
-  const images = allImages.filter((src) => !broken.has(src));
-  const [lightbox, setLightbox] = useState<string | null>(null);
+const isUpcoming = (event: EventItem) =>
+  event.category === 'upcoming' || new Date(event.date).getTime() >= Date.now();
 
+const EventCard = ({ event, featured }: { event: EventItem; featured?: boolean }) => {
+  const images = eventImages(event);
   return (
-    <article className="rounded-2xl border border-border bg-card p-5 shadow-soft transition-shadow hover:shadow-lifted">
-      <p className="text-xs uppercase tracking-wide text-secondary">{event.role}</p>
-      <h3 className="mt-1 text-lg font-semibold text-foreground">{event.name}</h3>
+    <article
+      className={cn(
+        'flex flex-col rounded-2xl border border-border bg-card p-5 shadow-soft transition-shadow hover:shadow-lifted',
+        featured && 'md:col-span-2 md:p-6',
+      )}
+    >
+      {images.length > 0 && (
+        <ImageGallery
+          images={images}
+          alt={event.name}
+          layout={featured ? 'feature' : 'grid'}
+          className="mb-4"
+        />
+      )}
+
+      <div className="flex items-start justify-between gap-3">
+        <p className="line-clamp-2 text-xs font-medium uppercase tracking-wide text-secondary">
+          {event.role}
+        </p>
+        <Badge variant={isUpcoming(event) ? 'secondary' : 'muted'} className="shrink-0">
+          {isUpcoming(event) ? 'Upcoming' : 'Past'}
+        </Badge>
+      </div>
+
+      <h3 className={cn('mt-1 font-semibold text-foreground', featured ? 'text-xl md:text-2xl' : 'text-lg')}>
+        {event.name}
+      </h3>
 
       <div className="mt-3 space-y-1.5 text-sm text-muted-foreground">
         <p className="flex items-center gap-1.5">
           <CalendarDays className="h-4 w-4" />
           {new Date(event.date).toLocaleDateString(undefined, {
+            weekday: featured ? 'long' : undefined,
             month: 'long',
             day: 'numeric',
             year: 'numeric',
@@ -42,66 +67,25 @@ const EventCard = ({ event }: { event: EventItem }) => {
       </div>
 
       {event.description && (
-        <p className="mt-3 line-clamp-3 text-sm text-muted-foreground">{event.description}</p>
+        <p className={cn('mt-3 text-sm text-muted-foreground', featured ? 'line-clamp-4' : 'line-clamp-3')}>
+          {event.description}
+        </p>
       )}
 
       {(event.link || event.materialsUrl) && (
         <div className="mt-3 flex flex-wrap gap-4 text-sm font-medium text-primary">
           {event.link && (
-            <a
-              href={event.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 hover:underline"
-            >
+            <a href={event.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:underline">
               <ExternalLink className="h-4 w-4" /> Event link
             </a>
           )}
           {event.materialsUrl && (
-            <a
-              href={event.materialsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 hover:underline"
-            >
+            <a href={event.materialsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:underline">
               <FileText className="h-4 w-4" /> Materials
             </a>
           )}
         </div>
       )}
-
-      {images.length > 0 && (
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          {images.slice(0, 3).map((img) => (
-            <button
-              key={img}
-              type="button"
-              onClick={() => setLightbox(img)}
-              className="overflow-hidden rounded-xl border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <img
-                src={img}
-                alt={event.name}
-                loading="lazy"
-                onError={() => setBroken((prev) => new Set(prev).add(img))}
-                className="h-24 w-full object-cover transition-transform hover:scale-105"
-              />
-            </button>
-          ))}
-        </div>
-      )}
-
-      <Dialog open={lightbox !== null} onOpenChange={(o) => !o && setLightbox(null)}>
-        <DialogContent className="max-w-3xl bg-transparent p-0 shadow-none" hideClose>
-          {lightbox && (
-            <img
-              src={lightbox}
-              alt={event.name}
-              className="max-h-[80vh] w-full rounded-2xl object-contain"
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </article>
   );
 };
@@ -140,8 +124,8 @@ const EventList = ({
   }
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      {events.map((event) => (
-        <EventCard key={event._id} event={event} />
+      {events.map((event, i) => (
+        <EventCard key={event._id} event={event} featured={i === 0} />
       ))}
     </div>
   );
