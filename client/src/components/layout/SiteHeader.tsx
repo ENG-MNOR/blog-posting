@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
+import { LogoMark } from '@/components/common/Logo';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -45,8 +46,8 @@ const SiteHeader = () => {
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
         <NavLink to="/" className="group flex items-center gap-2.5 leading-tight">
-          <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-white shadow-soft ring-1 ring-border">
-            <img src="/logo.jpeg" alt="Nor Haji Osman" className="h-full w-full scale-[1.35] object-contain" />
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/12 to-secondary/12 p-2 text-primary shadow-soft ring-1 ring-border transition-colors group-hover:from-primary/20 group-hover:to-secondary/20">
+            <LogoMark />
           </span>
           <span className="flex flex-col">
             <span className="whitespace-nowrap text-[10px] uppercase tracking-[0.3em] text-muted-foreground">

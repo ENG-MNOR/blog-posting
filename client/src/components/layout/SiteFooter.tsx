@@ -1,5 +1,6 @@
 import { Mail } from 'lucide-react';
 import { FaWhatsapp, FaFacebookF, FaLinkedinIn } from 'react-icons/fa';
+import { LogoMark } from '@/components/common/Logo';
 
 const socials = [
   {
@@ -29,8 +30,8 @@ const SiteFooter = () => {
     <footer className="border-t border-border bg-surface transition-colors duration-300">
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-8 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
-          <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-white shadow-soft ring-1 ring-border">
-            <img src="/logo.jpeg" alt="" className="h-full w-full scale-[1.35] object-contain" />
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/12 to-secondary/12 p-2 text-primary ring-1 ring-border">
+            <LogoMark />
           </span>
           <div>
             <p className="font-display text-base text-foreground">Nor Haji Osman</p>

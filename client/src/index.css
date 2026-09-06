@@ -206,10 +206,10 @@
 
   /* Section eyebrow with a leading accent rule. */
   .eyebrow {
-    @apply inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.35em] text-primary;
+    @apply flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.35em] text-primary;
   }
   .eyebrow::before {
     content: '';
-    @apply h-px w-6 bg-primary/50;
+    @apply h-px w-6 shrink-0 bg-primary/50;
   }
 }
