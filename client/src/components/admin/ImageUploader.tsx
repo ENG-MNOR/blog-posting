@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, ImagePlus, Star, UploadCloud, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { resolveMediaUrl } from '@/lib/media';
@@ -29,17 +29,30 @@ export const ImageUploader = ({ items, onChange, max = 3, label = 'Images' }: Im
   const [dragOver, setDragOver] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
-  // Revoke object URLs for any 'new' item that leaves the list.
-  const previews = useMemo(
-    () => items.filter((i): i is Extract<UploaderItem, { kind: 'new' }> => i.kind === 'new').map((i) => i.preview),
-    [items],
-  );
-  useEffect(
-    () => () => {
-      previews.forEach((url) => URL.revokeObjectURL(url));
-    },
-    [previews],
-  );
+  // Every object URL this component has created, so we can revoke exactly the
+  // ones that leave the list (revoking a URL that's still rendered would break
+  // the thumbnail) and clean up whatever remains on unmount.
+  const createdUrls = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const active = new Set(
+      items.filter((i): i is Extract<UploaderItem, { kind: 'new' }> => i.kind === 'new').map((i) => i.preview),
+    );
+    for (const url of createdUrls.current) {
+      if (!active.has(url)) {
+        URL.revokeObjectURL(url);
+        createdUrls.current.delete(url);
+      }
+    }
+  }, [items]);
+
+  useEffect(() => {
+    const urls = createdUrls.current;
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+      urls.clear();
+    };
+  }, []);
 
   const addFiles = useCallback(
     (files: FileList | File[]) => {
@@ -59,7 +72,9 @@ export const ImageUploader = ({ items, onChange, max = 3, label = 'Images' }: Im
           toast.error(`${file.name}: larger than 8 MB`);
           continue;
         }
-        accepted.push({ kind: 'new', file, preview: URL.createObjectURL(file) });
+        const preview = URL.createObjectURL(file);
+        createdUrls.current.add(preview);
+        accepted.push({ kind: 'new', file, preview });
       }
       if (incoming.length > room) toast.error(`Only ${room} more image${room === 1 ? '' : 's'} allowed`);
       if (accepted.length) onChange([...items, ...accepted]);
@@ -68,8 +83,7 @@ export const ImageUploader = ({ items, onChange, max = 3, label = 'Images' }: Im
   );
 
   const remove = (index: number) => {
-    const target = items[index];
-    if (target.kind === 'new') URL.revokeObjectURL(target.preview);
+    // The effect above revokes the object URL once the item is gone.
     onChange(items.filter((_, i) => i !== index));
   };
 

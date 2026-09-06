@@ -199,7 +199,7 @@ const HomePage = () => {
                   <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{item.summary}</p>
                   {(item.externalLink || item.pdfUrl) && (
                     <a
-                      href={item.externalLink || item.pdfUrl}
+                      href={resolveMediaUrl(item.externalLink || item.pdfUrl)}
                       target="_blank"
                       rel="noreferrer"
                       className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary"

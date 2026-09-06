@@ -50,9 +50,22 @@ app.set('trust proxy', 1);
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    // The SPA is served from this same origin in production. Allow the image
+    // sources it actually uses (same-origin uploads, blob: previews, data: URIs,
+    // and an optional https CDN) and don't force https on http deployments.
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        'img-src': ["'self'", 'data:', 'blob:', 'https:'],
+        'connect-src': ["'self'", 'https:'],
+        'upgrade-insecure-requests': null,
+      },
+    },
+  }),
+);
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(cookieParser());

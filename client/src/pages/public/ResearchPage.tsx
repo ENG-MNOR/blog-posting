@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { FileText, Search, ExternalLink } from 'lucide-react';
 import { useResearch } from '@/hooks/useApi';
+import { resolveMediaUrl } from '@/lib/media';
 import { Badge } from '@/components/ui/badge';
 import { Input, Select } from '@/components/ui/input';
 import { Reveal } from '@/components/ui/reveal';
@@ -125,7 +126,7 @@ const ResearchPage = () => {
                     <div className="mt-4 flex flex-wrap gap-4 text-sm font-medium text-primary">
                       {item.pdfUrl && (
                         <a
-                          href={item.pdfUrl}
+                          href={resolveMediaUrl(item.pdfUrl)}
                           target="_blank"
                           rel="noreferrer"
                           className="inline-flex items-center gap-1.5 hover:underline"
@@ -135,7 +136,7 @@ const ResearchPage = () => {
                       )}
                       {item.externalLink && (
                         <a
-                          href={item.externalLink}
+                          href={resolveMediaUrl(item.externalLink)}
                           target="_blank"
                           rel="noreferrer"
                           className="inline-flex items-center gap-1.5 hover:underline"
