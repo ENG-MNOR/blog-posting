@@ -23,12 +23,14 @@ const clean = (params?: Record<string, unknown>) =>
 export const useContent = (slug: 'home' | 'about') =>
   useQuery({
     queryKey: queryKeys.content(slug),
-    queryFn: async () => {
+    queryFn: async (): Promise<ContentBlock | null> => {
       try {
         const { data } = await apiClient.get<ContentBlock>(`/content/${slug}`);
-        return data;
+        return data ?? null;
       } catch (error) {
-        if ((error as { response?: { status?: number } }).response?.status === 404) return undefined;
+        // No content row yet for this slug — the page falls back to defaults.
+        // (Return null, not undefined: react-query rejects undefined data.)
+        if ((error as { response?: { status?: number } }).response?.status === 404) return null;
         throw error;
       }
     },
