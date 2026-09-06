@@ -2,23 +2,26 @@ import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import type { ColumnDef } from '@tanstack/react-table';
-import { Edit, Plus, Search, Trash2, X } from 'lucide-react';
+import { CalendarDays, Edit, ExternalLink, FileText, MapPin, Plus, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useEvents, useMutateEvents } from '@/hooks/useApi';
 import { toApiError } from '@/api/client';
-import { resolveMediaUrl } from '@/lib/media';
 import type { EventItem } from '@/types';
 import { eventSchema, type EventFormValues } from '@/lib/schemas';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea, Label } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Img } from '@/components/ui/image';
-import { DataTable } from '@/components/ui/data-table';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { ImageGallery } from '@/components/ui/image-gallery';
+import { SkeletonCard } from '@/components/ui/skeleton';
+import { EmptyState, ErrorState } from '@/components/ui/states';
 import { ConfirmDialog, useConfirm } from '@/components/ui/confirm-dialog';
 import { Spinner } from '@/components/ui/spinner';
 import { ImageUploader, type UploaderItem } from '@/components/admin/ImageUploader';
+import { EntityCardActions } from '@/components/admin/EntityCardActions';
+
+const MAX_IMAGES = 6;
 
 const emptyValues: EventFormValues = {
   name: '',
@@ -33,12 +36,80 @@ const emptyValues: EventFormValues = {
 const isUpcoming = (event: EventItem) =>
   event.category === 'upcoming' || new Date(event.date).getTime() >= Date.now();
 
+const formatDate = (d: string) =>
+  new Date(d).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+
+const EventCard = ({
+  event,
+  onEdit,
+  onDelete,
+}: {
+  event: EventItem;
+  onEdit: () => void;
+  onDelete: () => void;
+}) => {
+  const images = event.images?.length ? event.images : event.imageUrl ? [event.imageUrl] : [];
+  return (
+    <article className="flex flex-col rounded-2xl border border-border bg-card p-5 shadow-soft transition-shadow hover:shadow-lifted">
+      {images.length > 0 && (
+        <ImageGallery images={images} alt={event.name} markCover className="mb-4" />
+      )}
+
+      <div className="flex items-start justify-between gap-3">
+        <p className="line-clamp-2 text-xs font-medium uppercase tracking-wide text-secondary">
+          {event.role}
+        </p>
+        <Badge variant={isUpcoming(event) ? 'secondary' : 'muted'} className="shrink-0">
+          {isUpcoming(event) ? 'Upcoming' : 'Past'}
+        </Badge>
+      </div>
+
+      <h3 className="mt-1 line-clamp-2 text-lg font-semibold text-foreground">{event.name}</h3>
+
+      <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+        <p className="flex items-center gap-1.5">
+          <CalendarDays className="h-4 w-4" /> {formatDate(event.date)}
+        </p>
+        {event.location && (
+          <p className="flex items-center gap-1.5">
+            <MapPin className="h-4 w-4" /> {event.location}
+          </p>
+        )}
+      </div>
+
+      {event.description && (
+        <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{event.description}</p>
+      )}
+
+      {(event.link || event.materialsUrl) && (
+        <div className="mt-3 flex flex-wrap gap-4 text-sm font-medium text-primary">
+          {event.link && (
+            <a href={event.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:underline">
+              <ExternalLink className="h-4 w-4" /> Link
+            </a>
+          )}
+          {event.materialsUrl && (
+            <a href={event.materialsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:underline">
+              <FileText className="h-4 w-4" /> Materials
+            </a>
+          )}
+        </div>
+      )}
+
+      <div className="mt-auto">
+        <EntityCardActions onEdit={onEdit} onDelete={onDelete} />
+      </div>
+    </article>
+  );
+};
+
 const EventManagerPage = () => {
   const { data, isLoading, isError, refetch } = useEvents();
   const mutations = useMutateEvents();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [imageItems, setImageItems] = useState<UploaderItem[]>([]);
   const [query, setQuery] = useState('');
+  const [tab, setTab] = useState<'all' | 'upcoming' | 'past'>('all');
   const confirm = useConfirm<EventItem>();
 
   const {
@@ -48,12 +119,21 @@ const EventManagerPage = () => {
     formState: { errors, isSubmitting },
   } = useForm<EventFormValues>({ resolver: zodResolver(eventSchema), defaultValues: emptyValues });
 
-  const rows = useMemo(() => {
+  const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (data ?? []).filter(
-      (e) => !q || [e.name, e.role, e.location, e.description].some((f) => f?.toLowerCase().includes(q)),
-    );
-  }, [data, query]);
+    return (data ?? [])
+      .filter((e) => (tab === 'all' ? true : tab === 'upcoming' ? isUpcoming(e) : !isUpcoming(e)))
+      .filter(
+        (e) => !q || [e.name, e.role, e.location, e.description].some((f) => f?.toLowerCase().includes(q)),
+      )
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [data, query, tab]);
+
+  const counts = useMemo(() => {
+    const all = data ?? [];
+    const up = all.filter(isUpcoming).length;
+    return { all: all.length, upcoming: up, past: all.length - up };
+  }, [data]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -87,8 +167,6 @@ const EventManagerPage = () => {
     fd.append('link', values.link ?? '');
     fd.append('materialsUrl', values.materialsUrl ?? '');
 
-    // Ordered image payload: existing URLs kept, new files uploaded, and an
-    // imageOrder token list so the server can rebuild the exact sequence.
     const order: string[] = [];
     let newIndex = 0;
     for (const item of imageItems) {
@@ -118,89 +196,19 @@ const EventManagerPage = () => {
     }
   };
 
-  const columns = useMemo<ColumnDef<EventItem, unknown>[]>(
-    () => [
-      {
-        id: 'cover',
-        header: '',
-        enableSorting: false,
-        cell: ({ row }) => {
-          const cover = row.original.images?.[0] ?? row.original.imageUrl;
-          return (
-            <Img
-              src={resolveMediaUrl(cover)}
-              alt=""
-              compact
-              wrapperClassName="h-10 w-10 shrink-0 rounded-lg border border-border"
-            />
-          );
-        },
-      },
-      {
-        accessorKey: 'name',
-        header: 'Event',
-        cell: ({ row }) => (
-          <div>
-            <p className="line-clamp-1 font-medium text-foreground">{row.original.name}</p>
-            <p className="text-xs text-muted-foreground">{row.original.role}</p>
-          </div>
-        ),
-      },
-      {
-        accessorKey: 'date',
-        header: 'Date',
-        cell: ({ getValue }) => new Date(getValue<string>()).toLocaleDateString(),
-      },
-      {
-        accessorKey: 'location',
-        header: 'Location',
-        cell: ({ getValue }) => getValue<string>() || '—',
-      },
-      {
-        id: 'status',
-        header: 'Status',
-        enableSorting: false,
-        cell: ({ row }) =>
-          isUpcoming(row.original) ? (
-            <Badge variant="secondary">Upcoming</Badge>
-          ) : (
-            <Badge variant="muted">Past</Badge>
-          ),
-      },
-      {
-        id: 'actions',
-        header: '',
-        enableSorting: false,
-        cell: ({ row }) => (
-          <div className="flex justify-end gap-1">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEdit(row.original)} aria-label="Edit">
-              <Edit size={16} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-destructive hover:bg-destructive/10"
-              onClick={() => confirm.ask(row.original)}
-              aria-label="Delete"
-            >
-              <Trash2 size={16} />
-            </Button>
-          </div>
-        ),
-      },
-    ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
-
   return (
     <div className="space-y-8">
       <Helmet>
         <title>Events · Admin</title>
       </Helmet>
-      <PageHeader eyebrow="Manage" title="Events" description="Schedule seminars, trainings, and missions." />
+      <PageHeader
+        eyebrow="Manage"
+        title="Events"
+        description="Schedule seminars, trainings, and missions — with up to 6 images each."
+      />
 
-      <div className="grid gap-8 lg:grid-cols-[400px_1fr]">
+      <div className="grid gap-8 lg:grid-cols-[420px_1fr]">
+        {/* Form */}
         <form
           onSubmit={handleSubmit(onSubmit)}
           className="h-max rounded-2xl border border-border bg-card p-6 shadow-soft lg:sticky lg:top-6"
@@ -248,13 +256,13 @@ const EventManagerPage = () => {
               <Input id="materialsUrl" placeholder="https://…" error={errors.materialsUrl?.message} {...register('materialsUrl')} />
             </div>
 
-            <ImageUploader items={imageItems} onChange={setImageItems} max={3} />
+            <ImageUploader items={imageItems} onChange={setImageItems} max={MAX_IMAGES} label="Event images" />
           </div>
 
           <div className="mt-5 flex gap-2">
             <Button type="submit" className="flex-1" disabled={isSubmitting}>
               {isSubmitting ? <Spinner /> : editingId ? <Edit size={16} /> : <Plus size={16} />}
-              {editingId ? 'Update' : 'Create event'}
+              {editingId ? 'Update event' : 'Create event'}
             </Button>
             {editingId && (
               <Button type="button" variant="outline" onClick={resetForm}>
@@ -264,35 +272,63 @@ const EventManagerPage = () => {
           </div>
         </form>
 
-        <DataTable
-          columns={columns}
-          data={rows}
-          isLoading={isLoading}
-          isError={isError}
-          onRetry={() => refetch()}
-          getRowId={(r) => r._id}
-          emptyTitle={query ? 'No matching events' : 'No events yet'}
-          emptyDescription={query ? 'Try a different search.' : 'Add your first event with the form.'}
-          toolbar={
-            <div className="flex flex-wrap items-center gap-3">
-              <Input
-                icon={<Search />}
-                placeholder="Search events…"
-                className="sm:w-64"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-              <span className="ml-auto text-xs text-muted-foreground">{rows.length} shown</span>
-            </div>
-          }
-        />
+        {/* Card grid */}
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              icon={<Search />}
+              placeholder="Search events…"
+              className="sm:w-64"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <span className="ml-auto text-xs text-muted-foreground">{filtered.length} shown</span>
+          </div>
+
+          <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
+            <TabsList>
+              <TabsTrigger value="all">All ({counts.all})</TabsTrigger>
+              <TabsTrigger value="upcoming">Upcoming ({counts.upcoming})</TabsTrigger>
+              <TabsTrigger value="past">Past ({counts.past})</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value={tab}>
+              {isLoading ? (
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <SkeletonCard key={i} />
+                  ))}
+                </div>
+              ) : isError ? (
+                <ErrorState onRetry={() => refetch()} />
+              ) : filtered.length === 0 ? (
+                <EmptyState
+                  title={query ? 'No matching events' : 'No events yet'}
+                  description={query ? 'Try a different search.' : 'Add your first event with the form.'}
+                  icon={<CalendarDays className="h-5 w-5" />}
+                />
+              ) : (
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {filtered.map((event) => (
+                    <EventCard
+                      key={event._id}
+                      event={event}
+                      onEdit={() => startEdit(event)}
+                      onDelete={() => confirm.ask(event)}
+                    />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
 
       <ConfirmDialog
         open={confirm.open}
         onOpenChange={(o) => !o && confirm.close()}
         title="Delete this event?"
-        description={confirm.target ? `“${confirm.target.name}” will be permanently removed.` : ''}
+        description={confirm.target ? `“${confirm.target.name}” and its images will be permanently removed.` : ''}
         confirmLabel="Delete"
         destructive
         loading={confirm.loading}

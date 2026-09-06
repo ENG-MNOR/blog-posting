@@ -19,7 +19,7 @@ router.post(
   '/',
   authenticate,
   requireAdmin,
-  upload.array('images', 3),
+  upload.array('images', 6),
   validate(eventBodySchema),
   createEvent,
 );
@@ -27,7 +27,7 @@ router.put(
   '/:id',
   authenticate,
   requireAdmin,
-  upload.array('images', 3),
+  upload.array('images', 6),
   validate(eventUpdateSchema),
   updateEvent,
 );

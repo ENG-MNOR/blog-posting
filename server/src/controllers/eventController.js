@@ -1,6 +1,20 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { Event } from '../models/Event.js';
+import { env } from '../config/env.js';
+
+const MAX_IMAGES = 6;
 
 const mapUploadedFiles = (files = []) => files.map((file) => `/uploads/${file.filename}`);
+
+/** Best-effort removal of upload files that an event no longer references. */
+const removeUploads = async (urls = []) => {
+  await Promise.all(
+    urls
+      .filter((u) => typeof u === 'string' && u.startsWith('/uploads/'))
+      .map((u) => fs.unlink(path.join(env.uploadsDir, path.basename(u))).catch(() => {})),
+  );
+};
 
 const WRITABLE = ['name', 'role', 'date', 'location', 'description', 'link', 'materialsUrl'];
 
@@ -63,10 +77,10 @@ const resolveImages = (body, uploaded) => {
         if (kept.includes(url)) out.push(url);
       }
     }
-    if (out.length) return out.slice(0, 3);
+    if (out.length) return out.slice(0, MAX_IMAGES);
   }
 
-  return [...kept, ...uploaded].slice(0, 3);
+  return [...kept, ...uploaded].slice(0, MAX_IMAGES);
 };
 
 export const createEvent = async (req, res) => {
@@ -97,9 +111,11 @@ export const updateEvent = async (req, res) => {
     req.body.clearImages === 'true';
 
   if (touchedImages) {
+    const previous = doc.images || [];
     const finalImages = req.body.clearImages === 'true' ? [] : resolveImages(req.body, uploaded);
     doc.images = finalImages;
     doc.imageUrl = finalImages[0] || '';
+    await removeUploads(previous.filter((u) => !finalImages.includes(u)));
   }
 
   await doc.save();
@@ -109,5 +125,6 @@ export const updateEvent = async (req, res) => {
 export const deleteEvent = async (req, res) => {
   const deleted = await Event.findByIdAndDelete(req.params.id);
   if (!deleted) return res.status(404).json({ message: 'Event not found' });
+  await removeUploads(deleted.images || []);
   res.status(204).send();
 };

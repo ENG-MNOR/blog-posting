@@ -2,11 +2,11 @@ import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import type { ColumnDef } from '@tanstack/react-table';
-import { Edit, Plus, Search, Trash2, X } from 'lucide-react';
+import { Edit, ExternalLink, FileText, Plus, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useDashboardResearch, useMutateResearch } from '@/hooks/useApi';
 import { toApiError } from '@/api/client';
+import { resolveMediaUrl } from '@/lib/media';
 import { useAuthStore } from '@/store/auth';
 import type { Research } from '@/types';
 import { researchSchema, type ResearchFormValues } from '@/lib/schemas';
@@ -14,9 +14,11 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea, Select, Label } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { DataTable } from '@/components/ui/data-table';
+import { SkeletonCard } from '@/components/ui/skeleton';
+import { EmptyState, ErrorState } from '@/components/ui/states';
 import { ConfirmDialog, useConfirm } from '@/components/ui/confirm-dialog';
 import { Spinner } from '@/components/ui/spinner';
+import { EntityCardActions } from '@/components/admin/EntityCardActions';
 
 const emptyValues: ResearchFormValues = {
   title: '',
@@ -33,10 +35,55 @@ const statusBadge = (status: string) =>
   status === 'published' ? (
     <Badge variant="success">Published</Badge>
   ) : status === 'pending_review' ? (
-    <Badge variant="warning">Pending</Badge>
+    <Badge variant="warning">Pending review</Badge>
   ) : (
     <Badge variant="muted">Draft</Badge>
   );
+
+const ResearchCard = ({
+  item,
+  onEdit,
+  onDelete,
+}: {
+  item: Research;
+  onEdit: () => void;
+  onDelete: () => void;
+}) => (
+  <article className="flex flex-col rounded-2xl border border-border bg-card p-5 shadow-soft transition-shadow hover:shadow-lifted">
+    <div className="flex flex-wrap items-center gap-2">
+      {item.topic && (
+        <Badge variant="secondary" className="uppercase tracking-wide">
+          {item.topic}
+        </Badge>
+      )}
+      <span className="text-xs text-muted-foreground">{item.year}</span>
+      <span className="ml-auto">{statusBadge(item.status || 'draft')}</span>
+    </div>
+
+    <h3 className="mt-3 text-lg font-semibold text-foreground">{item.title}</h3>
+    {item.journal && <p className="text-sm text-muted-foreground">{item.journal}</p>}
+    <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{item.summary}</p>
+
+    {(item.pdfUrl || item.externalLink) && (
+      <div className="mt-3 flex flex-wrap gap-4 text-sm font-medium text-primary">
+        {item.pdfUrl && (
+          <a href={resolveMediaUrl(item.pdfUrl)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:underline">
+            <FileText className="h-4 w-4" /> PDF
+          </a>
+        )}
+        {item.externalLink && (
+          <a href={resolveMediaUrl(item.externalLink)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:underline">
+            <ExternalLink className="h-4 w-4" /> Journal
+          </a>
+        )}
+      </div>
+    )}
+
+    <div className="mt-auto">
+      <EntityCardActions onEdit={onEdit} onDelete={onDelete} />
+    </div>
+  </article>
+);
 
 const ResearchManagerPage = () => {
   const user = useAuthStore((s) => s.user);
@@ -60,12 +107,14 @@ const ResearchManagerPage = () => {
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (data ?? []).filter((item) => {
-      const matchesQuery =
-        !q || [item.title, item.summary, item.journal, item.topic].some((f) => f?.toLowerCase().includes(q));
-      const matchesStatus = !statusFilter || item.status === statusFilter;
-      return matchesQuery && matchesStatus;
-    });
+    return (data ?? [])
+      .filter((item) => {
+        const matchesQuery =
+          !q || [item.title, item.summary, item.journal, item.topic].some((f) => f?.toLowerCase().includes(q));
+        const matchesStatus = !statusFilter || item.status === statusFilter;
+        return matchesQuery && matchesStatus;
+      })
+      .sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
   }, [data, query, statusFilter]);
 
   const startEdit = (item: Research) => {
@@ -103,67 +152,15 @@ const ResearchManagerPage = () => {
     }
   };
 
-  const columns = useMemo<ColumnDef<Research, unknown>[]>(
-    () => [
-      {
-        accessorKey: 'title',
-        header: 'Title',
-        cell: ({ row }) => (
-          <div className="max-w-sm">
-            <p className="line-clamp-1 font-medium text-foreground">{row.original.title}</p>
-            <p className="line-clamp-1 text-xs text-muted-foreground">{row.original.summary}</p>
-          </div>
-        ),
-      },
-      { accessorKey: 'year', header: 'Year', cell: ({ getValue }) => getValue<number>() },
-      {
-        accessorKey: 'topic',
-        header: 'Topic',
-        cell: ({ getValue }) => getValue<string>() || '—',
-      },
-      {
-        accessorKey: 'status',
-        header: 'Status',
-        cell: ({ getValue }) => statusBadge(getValue<string>() || 'draft'),
-      },
-      {
-        id: 'actions',
-        header: '',
-        enableSorting: false,
-        cell: ({ row }) => (
-          <div className="flex justify-end gap-1">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEdit(row.original)} aria-label="Edit">
-              <Edit size={16} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-destructive hover:bg-destructive/10"
-              onClick={() => confirm.ask(row.original)}
-              aria-label="Delete"
-            >
-              <Trash2 size={16} />
-            </Button>
-          </div>
-        ),
-      },
-    ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
-
   return (
     <div className="space-y-8">
       <Helmet>
         <title>Research · Admin</title>
       </Helmet>
-      <PageHeader
-        eyebrow="Manage"
-        title="Research"
-        description="Add, edit, and publish research papers."
-      />
+      <PageHeader eyebrow="Manage" title="Research" description="Add, edit, publish, and remove research papers." />
 
       <div className="grid gap-8 lg:grid-cols-[380px_1fr]">
+        {/* Form */}
         <form
           onSubmit={handleSubmit(onSubmit)}
           className="h-max rounded-2xl border border-border bg-card p-6 shadow-soft lg:sticky lg:top-6"
@@ -217,16 +214,14 @@ const ResearchManagerPage = () => {
                 <option value="pending_review">Pending review</option>
                 {isAdmin && <option value="published">Published</option>}
               </Select>
-              {!isAdmin && (
-                <p className="mt-1 text-xs text-muted-foreground">Only admins can publish.</p>
-              )}
+              {!isAdmin && <p className="mt-1 text-xs text-muted-foreground">Only admins can publish.</p>}
             </div>
           </div>
 
           <div className="mt-5 flex gap-2">
             <Button type="submit" className="flex-1" disabled={isSubmitting}>
               {isSubmitting ? <Spinner /> : editingId ? <Edit size={16} /> : <Plus size={16} />}
-              {editingId ? 'Update' : 'Add research'}
+              {editingId ? 'Update research' : 'Add research'}
             </Button>
             {editingId && (
               <Button type="button" variant="outline" onClick={cancelEdit}>
@@ -236,39 +231,57 @@ const ResearchManagerPage = () => {
           </div>
         </form>
 
-        <DataTable
-          columns={columns}
-          data={rows}
-          isLoading={isLoading}
-          isError={isError}
-          onRetry={() => refetch()}
-          getRowId={(r) => r._id}
-          emptyTitle={query || statusFilter ? 'No matching research' : 'No research yet'}
-          emptyDescription={query || statusFilter ? 'Try clearing filters.' : 'Add your first entry with the form.'}
-          toolbar={
-            <div className="flex flex-wrap items-center gap-3">
-              <Input
-                icon={<Search />}
-                placeholder="Search research…"
-                className="sm:w-64"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-              <Select
-                className="sm:w-44"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                aria-label="Filter by status"
-              >
-                <option value="">All statuses</option>
-                <option value="draft">Draft</option>
-                <option value="pending_review">Pending review</option>
-                <option value="published">Published</option>
-              </Select>
-              <span className="ml-auto text-xs text-muted-foreground">{rows.length} shown</span>
+        {/* Card grid */}
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              icon={<Search />}
+              placeholder="Search research…"
+              className="sm:w-56"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <Select
+              className="sm:w-44"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              aria-label="Filter by status"
+            >
+              <option value="">All statuses</option>
+              <option value="draft">Draft</option>
+              <option value="pending_review">Pending review</option>
+              <option value="published">Published</option>
+            </Select>
+            <span className="ml-auto text-xs text-muted-foreground">{rows.length} shown</span>
+          </div>
+
+          {isLoading ? (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
             </div>
-          }
-        />
+          ) : isError ? (
+            <ErrorState onRetry={() => refetch()} />
+          ) : rows.length === 0 ? (
+            <EmptyState
+              title={query || statusFilter ? 'No matching research' : 'No research yet'}
+              description={query || statusFilter ? 'Try clearing filters.' : 'Add your first entry with the form.'}
+              icon={<FileText className="h-5 w-5" />}
+            />
+          ) : (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {rows.map((item) => (
+                <ResearchCard
+                  key={item._id}
+                  item={item}
+                  onEdit={() => startEdit(item)}
+                  onDelete={() => confirm.ask(item)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <ConfirmDialog
