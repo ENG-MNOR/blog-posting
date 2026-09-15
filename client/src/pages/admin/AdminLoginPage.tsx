@@ -89,7 +89,7 @@ const AdminLoginPage = () => {
             </span>
             <div className="leading-tight">
               <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">Nor Haji Osman</p>
-              <p className="font-display text-lg">Public Health Leader</p>
+              <p className="font-display text-lg">HMIS Specialist</p>
             </div>
           </div>
 

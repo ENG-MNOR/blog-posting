@@ -8,7 +8,7 @@ import { ErrorState } from '@/components/ui/states';
 
 const FALLBACK = {
   intro:
-    'Nor Haji Osman is a seasoned public health leader helping governments translate data into decisive action across HMIS, IDSR, and immunization programs.',
+    'Nor Haji Osman is a seasoned HMIS specialist helping governments translate data into decisive action across HMIS, IDSR, and immunization programs.',
   roles: [
     'Director, Health Information Systems',
     'Advisor, WHO Horn of Africa',
@@ -38,7 +38,7 @@ const AboutPage = () => {
         <title>About | Nor Haji Osman</title>
         <meta
           name="description"
-          content="Nor Haji Osman is a public health leader specialising in health information systems, disease surveillance, and data use."
+          content="Nor Haji Osman is an HMIS specialist focused on health information systems, disease surveillance, and data use."
         />
       </Helmet>
 

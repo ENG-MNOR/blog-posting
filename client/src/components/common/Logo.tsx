@@ -48,7 +48,7 @@ export const LogoMark = ({ className }: { className?: string }) => (
 export const Logo = ({
   className,
   markClassName,
-  subtitle = 'Public Health Leader',
+  subtitle = 'HMIS Specialist',
 }: {
   className?: string;
   markClassName?: string;

@@ -54,7 +54,7 @@ const SiteHeader = () => {
               Nor Haji Osman
             </span>
             <span className="whitespace-nowrap font-display text-base text-foreground sm:text-lg">
-              Public Health Leader
+              HMIS Specialist
             </span>
           </span>
         </NavLink>

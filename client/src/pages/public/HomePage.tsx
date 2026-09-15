@@ -47,12 +47,12 @@ const HomePage = () => {
   return (
     <>
       <Helmet>
-        <title>Nor Haji Osman | Public Health Leader</title>
+        <title>Nor Haji Osman | HMIS specialist </title>
         <meta
           name="description"
           content="Nor Haji Osman partners with ministries, donors, and global agencies to strengthen health information systems, disease surveillance, and data use across the Horn of Africa."
         />
-        <meta property="og:title" content="Nor Haji Osman | Public Health Leader" />
+        <meta property="og:title" content="Nor Haji Osman | HMIS specialist " />
         <meta
           property="og:description"
           content="Data-driven leadership for resilient health systems across the Horn of Africa."
@@ -76,7 +76,7 @@ const HomePage = () => {
               transition={{ duration: 0.5 }}
               className="eyebrow"
             >
-              Public Health Expert
+              HMIS Specialist
             </motion.p>
             <motion.h1
               initial={{ opacity: 0, y: 14 }}
